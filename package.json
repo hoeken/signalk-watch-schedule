@@ -1,0 +1,42 @@
+{
+  "name": "signalk-watch-schedule",
+  "version": "0.1.0",
+  "description": "Crew watch schedule for offshore and overnight sailing — SignalK plugin + webapp",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "build:webapp": "vite build --config webapp/vite.config.js",
+    "dev:webapp": "vite --config webapp/vite.config.js",
+    "test": "node --test",
+    "prepublishOnly": "npm run build:webapp"
+  },
+  "keywords": [
+    "signalk-node-server-plugin",
+    "signalk-webapp",
+    "signalk-category-utility",
+    "watch",
+    "schedule",
+    "sailing",
+    "offshore"
+  ],
+  "author": "Zach Hoeken",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hoeken/signalk-watch-schedule.git"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "index.js",
+    "src/",
+    "public/"
+  ],
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^6.0.7"
+  }
+}
