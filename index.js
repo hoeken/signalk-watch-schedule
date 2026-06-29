@@ -76,37 +76,6 @@ export default function (app) {
         default: 8,
         minimum: 1,
       },
-      customSystems: {
-        type: 'array',
-        title: 'Custom Watch Systems (advanced)',
-        description: 'Optional captain-defined rotations using the same schema as the built-ins.',
-        default: [],
-        items: {
-          type: 'object',
-          required: ['id', 'name', 'teamCount', 'cycleDuration', 'segments'],
-          properties: {
-            id: { type: 'string', title: 'ID' },
-            name: { type: 'string', title: 'Name' },
-            description: { type: 'string', title: 'Description' },
-            teamCount: { type: 'number', title: 'Team count', minimum: 1 },
-            cycleDuration: { type: 'number', title: 'Cycle duration (minutes)', minimum: 1 },
-            segments: {
-              type: 'array',
-              title: 'Segments',
-              items: {
-                type: 'object',
-                required: ['offset', 'duration', 'teamIndex'],
-                properties: {
-                  offset: { type: 'number', title: 'Offset (minutes from cycle start)' },
-                  duration: { type: 'number', title: 'Duration (minutes)', minimum: 1 },
-                  teamIndex: { type: 'number', title: 'Team index (0-based)', minimum: 0 },
-                  label: { type: 'string', title: 'Label' },
-                },
-              },
-            },
-          },
-        },
-      },
     },
   });
 
