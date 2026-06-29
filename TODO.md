@@ -1,6 +1,5 @@
 Initial Release - v0.1.0
 
-* flesh out package.json
 * add screenshots
 
 Long Term

@@ -1,7 +1,7 @@
 {
   "name": "signalk-watch-schedule",
   "version": "0.1.0",
-  "description": "Crew watch schedule for offshore and overnight sailing — SignalK plugin + webapp",
+  "description": "Crew watch schedule for offshore and overnight sailing",
   "type": "module",
   "main": "index.js",
   "scripts": {
@@ -31,7 +31,8 @@
     "offshore"
   ],
   "signalk": {
-    "appIcon": "icon-512.png"
+    "appIcon": "icon-512.png",
+    "displayName": "Watch Schedule"
   },
   "author": "Zach Hoeken",
   "license": "Apache-2.0",
@@ -40,7 +41,7 @@
     "url": "git+https://github.com/hoeken/signalk-watch-schedule.git"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "files": [
     "index.js",
