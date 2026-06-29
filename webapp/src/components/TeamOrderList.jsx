@@ -56,7 +56,7 @@ export default function TeamOrderList({ teams, order, onReorder, disabled }) {
             }}
             onDragEnd={endDrag}
           >
-            <span className="team-order__handle" aria-hidden="true">⠿</span>
+            <span className="team-order__handle" aria-hidden="true" />
             <span className="team-order__num" style={{ color }}>{pos + 1}</span>
             <span className="team-order__body">
               <span className="team-order__name" style={{ color }}>

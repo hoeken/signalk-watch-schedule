@@ -21,14 +21,26 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Form controls don't inherit font-family, so on the MFD (Chromium 69, limited
+   font set) they fall back to a serif UA default. Pull the body font into them. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 .app {
   max-width: 1100px;
   margin: 0 auto;
-  padding: env(safe-area-inset-top) 16px 32px;
+  /* Fallback first: an engine that doesn't understand env() drops the whole
+     declaration, which would also lose the side and bottom padding. */
+  padding: 0 16px 32px;
+  padding: env(safe-area-inset-top, 0px) 16px 32px;
 }
 
 /* ---- top bar ---- */
@@ -46,13 +58,15 @@ body {
 .topbar__title {
   display: flex;
   align-items: center;
-  gap: 10px;
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 0.2px;
 }
 
 .status-dot {
+  /* margin-right replaces a flexbox `gap` (unsupported before Chromium 84). */
+  margin-right: 10px;
+  flex-shrink: 0;
   width: 12px;
   height: 12px;
   border-radius: 50%;
@@ -133,7 +147,12 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+}
+
+/* Flexbox `gap` isn't supported until Chromium 84 (the MFD runs 69), so space
+   the rows with margins instead. Grid `gap` is fine and is kept as-is. */
+.shift + .shift {
+  margin-top: 10px;
 }
 
 .shift {
@@ -203,7 +222,10 @@ body {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 2px;
+  margin-top: 2px;
+}
+
+.shift__status > * + * {
   margin-top: 2px;
 }
 
@@ -230,15 +252,22 @@ body {
 .login {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+}
+
+.control > * + *,
+.login > * + * {
+  margin-top: 12px;
 }
 
 .control__field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
   font-size: 0.85rem;
   color: var(--muted);
+}
+
+.control__field > * + * {
+  margin-top: 6px;
 }
 
 .control__active {
@@ -287,7 +316,10 @@ input {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+}
+
+.team-order__item + .team-order__item {
+  margin-top: 8px;
 }
 
 .team-order__item {
@@ -313,10 +345,16 @@ input {
   box-shadow: 0 0 0 2px var(--accent) inset;
 }
 
+/* A CSS-drawn 2x3 dot grip — the old ⠿ braille glyph isn't in the MFD font and
+   rendered as a tofu box. Drawn with a tiled radial-gradient so it needs no font. */
 .team-order__handle {
+  align-self: center;
+  width: 8px;
+  height: 12px;
   color: var(--muted);
-  font-size: 1.1rem;
-  line-height: 1;
+  background-image: radial-gradient(currentColor 1px, transparent 1.5px);
+  background-size: 4px 4px;
+  background-position: center;
 }
 
 .team-order__num {
@@ -347,7 +385,10 @@ input {
 .team-order__moves {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+}
+
+.team-order__btn + .team-order__btn {
+  margin-top: 3px;
 }
 
 .team-order__btn {
