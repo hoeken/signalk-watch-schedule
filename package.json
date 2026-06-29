@@ -32,7 +32,13 @@
   ],
   "signalk": {
     "appIcon": "icon-512.png",
-    "displayName": "Watch Schedule"
+    "displayName": "Watch Schedule",
+    "screenshots": [
+      "./docs/screenshots/setup.png",
+      "./docs/screenshots/started.png",
+      "./docs/screenshots/dark_mode.png",
+      "./docs/screenshots/mobile.png"
+    ]
   },
   "author": "Zach Hoeken",
   "license": "Apache-2.0",
@@ -47,6 +53,7 @@
     "index.js",
     "src/",
     "public/",
+    "docs/screenshots/",
     "CHANGELOG.md"
   ],
   "devDependencies": {
