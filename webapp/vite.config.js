@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import icons from "./vite-plugin-icons.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -10,7 +11,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   root: __dirname,
   base: "./",
-  plugins: [react()],
+  plugins: [react(), icons({ source: resolve(__dirname, "../logo.png") })],
   resolve: {
     alias: {
       "@core": resolve(__dirname, "../src/core"),
