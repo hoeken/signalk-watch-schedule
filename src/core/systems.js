@@ -73,7 +73,7 @@ function fixedRotation(teamCount, watchHours) {
 
 /** Team sizes we ship simple rotations for, and the watch lengths offered. */
 const TEAM_COUNTS = [2, 3, 4, 5];
-const WATCH_HOURS = [4, 3, 2];
+const WATCH_HOURS = [4, 3, 2.5, 2];
 
 /**
  * Royal Navy day: four 4-hour watches, two 2-hour dog watches, then a 4-hour
@@ -93,11 +93,30 @@ const RN_DAY = [
   { duration: 4 * H, label: "First" },
 ];
 
+/**
+ * Hoeken's Dog Watch day: seven 3-hour watches with a single 3-hour afternoon
+ * slot split into two 1.5-hour dog watches. Nine watches/day (an odd count) keep
+ * the assignment shifting one team each day. Clock-ANCHORED (offset 0 = midnight),
+ * so the slots land on fixed hours: 00:00, 03:00, 06:00, 09:00, 12:00, then the
+ * dog watches at 15:00 and 16:30, then 18:00 and 21:00.
+ */
+const HOEKEN_DAY = [
+  { duration: 3 * H },
+  { duration: 3 * H },
+  { duration: 3 * H },
+  { duration: 3 * H },
+  { duration: 3 * H },
+  { duration: 1.5 * H, label: "First Dog" },
+  { duration: 1.5 * H, label: "Last Dog" },
+  { duration: 3 * H },
+  { duration: 3 * H },
+];
+
 /** @type {WatchSystem[]} */
 export const BUILTIN_SYSTEMS = [
   // Classic short-handed two-team schedule, kept alongside the generated family.
   fixedRotation(2, 6),
-  // Simple rotations for 2–5 teams at 4h / 3h / 2h watch lengths.
+  // Simple rotations for 2–5 teams at 4h / 3h / 2.5h / 2h watch lengths.
   ...TEAM_COUNTS.flatMap((teamCount) => WATCH_HOURS.map((hours) => fixedRotation(teamCount, hours))),
   {
     id: "rn-dog-watches",
@@ -108,6 +127,36 @@ export const BUILTIN_SYSTEMS = [
     anchored: true,
     builtin: true,
     segments: buildRotatingDaily(RN_DAY, 2, 2),
+  },
+  {
+    id: "rn-dog-watches-4",
+    name: "Royal Navy (Dog Watches)",
+    description: "Four-hour watches with two short evening dog watches, rotating across four teams so each stands every watch over a four-day cycle. Anchored to the clock (Middle starts at midnight).",
+    teamCount: 4,
+    cycleDuration: 4 * 24 * H,
+    anchored: true,
+    builtin: true,
+    segments: buildRotatingDaily(RN_DAY, 4, 4),
+  },
+  {
+    id: "hoekens-dog-watch",
+    name: "Hoeken's Dog Watch",
+    description: "Seven three-hour watches with a 1.5-hour pair of afternoon dog watches, rotating across four teams so each stands every watch over a four-day cycle. Anchored to the clock (first watch starts at midnight).",
+    teamCount: 4,
+    cycleDuration: 4 * 24 * H,
+    anchored: true,
+    builtin: true,
+    segments: buildRotatingDaily(HOEKEN_DAY, 4, 4),
+  },
+  {
+    id: "hoekens-dog-watch-2",
+    name: "Hoeken's Dog Watch",
+    description: "Seven three-hour watches with a 1.5-hour pair of afternoon dog watches; the odd watch count flips the two teams onto opposite watches each day, repeating over a two-day cycle. Anchored to the clock (first watch starts at midnight).",
+    teamCount: 2,
+    cycleDuration: 2 * 24 * H,
+    anchored: true,
+    builtin: true,
+    segments: buildRotatingDaily(HOEKEN_DAY, 2, 2),
   },
 ];
 
