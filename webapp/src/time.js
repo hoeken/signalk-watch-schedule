@@ -2,9 +2,21 @@
 
 import { snapToHour } from '@core/index.js';
 
+// We format dates from the legacy Date getters (getHours/getDay/…) rather than
+// toLocale*()/Intl. Both honor the same local timezone on a healthy browser, but
+// on Navico MFDs (Chromium 69) the two disagree: the OS exposes only a UTC
+// offset, which the legacy getters pick up correctly, while ICU/Intl has no real
+// IANA zone and falls back to Europe/London — so toLocale*() renders the wrong
+// time. Going through the getters keeps us on the offset that's actually right.
+const WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEKDAYS_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
 /** "14:00" in the viewer's local timezone (the boat's clock). */
 export function formatClock(epochMs) {
-  return new Date(epochMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  const d = new Date(epochMs);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
 /**
@@ -16,7 +28,7 @@ export function formatClock(epochMs) {
 export function formatHourOption(epochMs, nowMs) {
   const d = new Date(epochMs);
   const sameDay = d.toDateString() === new Date(nowMs).toDateString();
-  const time = sameDay ? formatClock(epochMs) : `${d.toLocaleDateString([], { weekday: 'short' })} ${formatClock(epochMs)}`;
+  const time = sameDay ? formatClock(epochMs) : `${WEEKDAYS_SHORT[d.getDay()]} ${formatClock(epochMs)}`;
   const diffH = Math.round((epochMs - snapToHour(nowMs, 'nearest')) / 3_600_000);
   const rel = diffH === 0 ? 'now' : diffH > 0 ? `+${diffH}h` : `−${-diffH}h`;
   return `${time} (${rel})`;
@@ -25,8 +37,7 @@ export function formatHourOption(epochMs, nowMs) {
 /** "Monday\n14:00" — weekday on its own line above the clock, for shifts crossing day boundaries. */
 export function formatClockDay(epochMs) {
   const d = new Date(epochMs);
-  const weekday = d.toLocaleDateString([], { weekday: 'long' });
-  return `${weekday}\n${formatClock(epochMs)}`;
+  return `${WEEKDAYS_LONG[d.getDay()]}\n${formatClock(epochMs)}`;
 }
 
 /** "4h", "3h 30m", "45m" from a minute count. */
