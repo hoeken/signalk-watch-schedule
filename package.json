@@ -38,6 +38,10 @@
       "./docs/screenshots/started.png",
       "./docs/screenshots/dark_mode.png",
       "./docs/screenshots/mobile.png"
+    ],
+    "recommends": [
+      "@meri-imperiumi/signalk-autostate",
+      "signalk-navico-embedder"
     ]
   },
   "author": "Zach Hoeken",
