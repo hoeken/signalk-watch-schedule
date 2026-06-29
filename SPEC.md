@@ -63,9 +63,9 @@ signalk-watch-schedule/
 
 ```js
 /**
- * A watch TEAM = a named group of crew. Teams are ordered; rotations reference them by index.
+ * A watch TEAM = a named group of crew. Teams are ordered; rotations reference them by
+ * index, and their position in the array is their stable key (teamId "team1" = index 0).
  * @typedef {Object} WatchTeam
- * @property {string} id        - stable key, e.g. "team1"
  * @property {string} name      - display name, e.g. "Port Watch" / "Alice & Bob"
  * @property {string[]} crew    - crew member names assigned to this team
  */
@@ -157,7 +157,6 @@ to use at start time; only systems whose `teamCount` ≤ configured team count a
 | `fixed-3-3`        | 3-on / 3-off                 | 2     | 6 h    | Shorter blocks, less sleep debt swing. |
 | `fixed-6-6`        | 6-on / 6-off                 | 2     | 12 h   | Two watches a day. |
 | `rn-dog-watches`   | Royal Navy (Dog Watches)     | 2     | 24 h   | 4-h watches + two 2-h dog watches (16:00–18:00, 18:00–20:00) so the rotation shifts daily. |
-| `swedish-5`        | Swedish / Scandinavian       | 3     | 24 h   | Variable lengths with shorter night watches; night slots rotate fairly. |
 
 Each preset includes `description` text for display. Example (`fixed-4-4`):
 
@@ -171,12 +170,9 @@ Each preset includes `description` text for display. Example (`fixed-4-4`):
 }
 ```
 
-> Exact `swedish-5` and dog-watch segment tables will be finalized in implementation and
-> validated by `validateSystem()`. The Royal Navy dog-watch table is defined relative to a
-> whole-hour start so the published watches land on clean clock times.
-
-Captains may also define **custom systems** in plugin config (same schema); these are merged
-with the built-ins.
+> Exact dog-watch segment tables will be finalized in implementation and validated by
+> `validateSystem()`. The Royal Navy dog-watch table is defined relative to a whole-hour
+> start so the published watches land on clean clock times.
 
 ---
 
@@ -186,12 +182,11 @@ with the built-ins.
 
 ```jsonc
 {
-  "teams": [                      // "how many watches" + crew assignment
-    { "id": "team1", "name": "Port Watch",      "crew": ["Alice", "Bob"] },
-    { "id": "team2", "name": "Starboard Watch", "crew": ["Carol", "Dave"] }
+  "teams": [                      // "how many watches" + crew assignment; order is the key
+    { "name": "Port Watch",      "crew": ["Alice", "Bob"] },
+    { "name": "Starboard Watch", "crew": ["Carol", "Dave"] }
   ],
   "defaultSystemId": "fixed-4-4", // default rotation offered/selected at start
-  "customSystems": [ /* WatchSystem[] — optional captain-defined rotations */ ],
   "publishHorizon": 8,            // how many upcoming shifts to publish/return
   "snapMode": "nearest"           // how to round start time to the hour: nearest | up | down
 }

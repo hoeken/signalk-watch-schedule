@@ -2,9 +2,7 @@
  * Built-in watch-system presets. Segments are always stored in minutes only; a
  * system's `anchored` flag decides whether those offsets are read from the watch
  * start (a simple rotating cycle) or from local midnight (clock-anchored, so the
- * watches land on fixed clock hours). All pass validateSystem(). Captains may add
- * custom systems via plugin config; they use the same {@link WatchSystem} schema
- * and are merged with these.
+ * watches land on fixed clock hours). All pass validateSystem().
  *
  * @typedef {import('./types.js').WatchSystem} WatchSystem
  * @typedef {import('./types.js').WatchSegment} WatchSegment
@@ -124,14 +122,13 @@ export function getSystemById(id, systems = BUILTIN_SYSTEMS) {
 }
 
 /**
- * All systems available for a crew of the given size: built-ins plus custom,
- * filtered to those that need exactly the number of configured teams. A rotation
- * with fewer teams would leave some teams without a watch and one with more can't
- * be staffed, so only an exact match is offered.
+ * Built-in systems available for a crew of the given size, filtered to those that
+ * need exactly the number of configured teams. A rotation with fewer teams would
+ * leave some teams without a watch and one with more can't be staffed, so only an
+ * exact match is offered.
  * @param {number} teamCount
- * @param {WatchSystem[]} [customSystems]
  * @returns {WatchSystem[]}
  */
-export function availableSystems(teamCount, customSystems = []) {
-  return [...BUILTIN_SYSTEMS, ...customSystems].filter((s) => s.teamCount === teamCount);
+export function availableSystems(teamCount) {
+  return BUILTIN_SYSTEMS.filter((s) => s.teamCount === teamCount);
 }

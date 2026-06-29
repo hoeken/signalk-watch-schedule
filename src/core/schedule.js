@@ -159,7 +159,7 @@ export function resolveSchedule(system, teams, startedAt, now, opts = {}) {
     const team = teams[seg.teamIndex];
     shifts.push({
       teamIndex: seg.teamIndex,
-      teamId: team?.id ?? `team${seg.teamIndex + 1}`,
+      teamId: `team${seg.teamIndex + 1}`,
       teamName: team?.name ?? `Team ${seg.teamIndex + 1}`,
       crew: team?.crew ?? [],
       startTime,

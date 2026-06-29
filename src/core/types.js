@@ -12,9 +12,9 @@
 
 /**
  * A watch TEAM — a named group of crew. Teams are ordered; rotations reference
- * them by 0-based index, so a rotation preset is reusable for any crew.
+ * them by 0-based index (their position in the array is their stable key), so a
+ * rotation preset is reusable for any crew.
  * @typedef {Object} WatchTeam
- * @property {string} id      Stable key, e.g. "team1".
  * @property {string} name    Display name, e.g. "Port Watch".
  * @property {string[]} crew  Crew member names assigned to this team.
  */
@@ -56,7 +56,7 @@
  * resolveSchedule(); never persisted.
  * @typedef {Object} ResolvedShift
  * @property {number} teamIndex
- * @property {string} teamId
+ * @property {string} teamId       Derived from position, e.g. "team1" for teamIndex 0.
  * @property {string} teamName
  * @property {string[]} crew
  * @property {number} startTime    Epoch ms.

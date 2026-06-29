@@ -60,7 +60,7 @@ export function registerRoutes(router, ctx) {
   router.get('/api/systems', (req, res) => {
     const options = getOptions() || {};
     const teams = options.teams ?? [];
-    res.json(availableSystems(teams.length, options.customSystems ?? []));
+    res.json(availableSystems(teams.length));
   });
 
   router.post('/api/watch/start', (req, res) => {
@@ -70,7 +70,7 @@ export function registerRoutes(router, ctx) {
 
     const options = getOptions() || {};
     const teams = options.teams ?? [];
-    const systems = availableSystems(teams.length, options.customSystems ?? []);
+    const systems = availableSystems(teams.length);
     const requestedId = (req.body && req.body.systemId) || options.defaultSystemId;
     const system = getSystemById(requestedId, systems);
     if (!system) {

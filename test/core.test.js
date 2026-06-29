@@ -17,9 +17,9 @@ const MIN = 60_000;
 const HOUR = 3_600_000;
 
 const TEAMS = [
-  { id: 'team1', name: 'Port', crew: ['Alice', 'Bob'] },
-  { id: 'team2', name: 'Starboard', crew: ['Carol', 'Dave'] },
-  { id: 'team3', name: 'Standby', crew: ['Erin'] },
+  { name: 'Port', crew: ['Alice', 'Bob'] },
+  { name: 'Starboard', crew: ['Carol', 'Dave'] },
+  { name: 'Standby', crew: ['Erin'] },
 ];
 
 test('snapToHour rounds to a whole local hour', () => {
@@ -164,8 +164,4 @@ test('availableSystems shows only systems matching the configured team count', (
 
   // A two-team rotation must not leak into a three-team crew's list.
   assert.ok(!availableSystems(3).some((s) => s.id === 'fixed-4-4'));
-
-  const custom = [{ id: 'c1', name: 'Custom', teamCount: 2, cycleDuration: 60, segments: [{ offset: 0, duration: 60, teamIndex: 0 }] }];
-  assert.ok(availableSystems(2, custom).some((s) => s.id === 'c1'));
-  assert.ok(!availableSystems(3, custom).some((s) => s.id === 'c1'), 'custom 2-team system hidden from 3-team crew');
 });

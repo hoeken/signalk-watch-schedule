@@ -18,7 +18,7 @@ import { resolveSchedule, getSystemById, availableSystems } from '../core/index.
  */
 export function buildWatchData(state, options, now) {
   const teams = options.teams ?? [];
-  const systems = availableSystems(teams.length, options.customSystems ?? []);
+  const systems = availableSystems(teams.length);
   const system = state.systemId ? getSystemById(state.systemId, systems) ?? null : null;
 
   let schedule = [];

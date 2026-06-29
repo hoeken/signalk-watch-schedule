@@ -37,14 +37,13 @@ export default function (app) {
         title: 'Watch Teams',
         description: 'Each team is a group of crew that stands watch together. Add a team per watch.',
         default: [
-          { id: 'team1', name: 'Watch 1', crew: [] },
-          { id: 'team2', name: 'Watch 2', crew: [] },
+          { name: 'Watch 1', crew: [] },
+          { name: 'Watch 2', crew: [] },
         ],
         items: {
           type: 'object',
-          required: ['id', 'name'],
+          required: ['name'],
           properties: {
-            id: { type: 'string', title: 'ID', description: 'Stable unique key, e.g. team1' },
             name: { type: 'string', title: 'Name', description: 'e.g. Port Watch' },
             crew: {
               type: 'array',

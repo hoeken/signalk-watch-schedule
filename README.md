@@ -10,8 +10,7 @@ color-coded, responsive schedule on any device.
 ## Features
 
 - **Watch teams + crew** configured in the plugin settings.
-- **Built-in rotation systems**: 4-on/4-off, 3-on/3-off, 6-on/6-off, Royal Navy dog watches,
-  and a Swedish/Scandinavian three-team rotation — plus optional custom systems.
+- **Built-in rotation systems**: 4-on/4-off, 3-on/3-off, 6-on/6-off, and Royal Navy dog watches.
 - **Whole-hour starts** — the schedule always begins on a clean clock hour.
 - **Live, color-coded schedule** starting with the active shift, highlighted and counting down.
 - **Auth-aware UI** — anyone can view the schedule; logged-in users get start/stop control.
@@ -52,10 +51,9 @@ Then enable the plugin in **Server → Plugin Config** and open it from **Webapp
 | **Default Watch System** | Rotation pre-selected when starting a watch. |
 | **Start-time rounding** | How the start snaps to the hour: `nearest` / `up` / `down`. |
 | **Shifts to publish** | How many upcoming shifts to publish and show. |
-| **Custom Watch Systems** | Optional captain-defined rotations (advanced). |
 
-Only systems whose required team count fits your configured teams are offered (e.g. the
-Swedish three-team rotation appears once you have three teams).
+Only systems whose required team count fits your configured teams are offered (e.g. a
+three-team rotation appears once you have three teams).
 
 ## SignalK paths
 
