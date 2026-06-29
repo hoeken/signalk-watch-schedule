@@ -49,7 +49,17 @@ export default function WatchControl({
   return (
     <div className="control">
       <label className="control__field">
-        <span>Watch system</span>
+        <span className="control__field-title-row">
+          Watch system
+          <a
+            className="link"
+            href="https://github.com/hoeken/signalk-watch-schedule/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            request new
+          </a>
+        </span>
         <select
           value={selectedSystemId ?? ""}
           onChange={(e) => onSelect(e.target.value)}
@@ -80,7 +90,7 @@ export default function WatchControl({
 
       {canStart && teams.length > 1 ? (
         <div className="control__field">
-          <span>Watch order</span>
+          <span className="control__field-title">Watch order</span>
           <TeamOrderList teams={teams} order={teamOrder} onReorder={onReorder} disabled={busy} />
           <div className="muted">
             {teams[teamOrder[0]]?.name ?? "The first team"} starts at {formatClock(startAt)}; the rest follow in

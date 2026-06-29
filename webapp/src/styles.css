@@ -317,6 +317,21 @@ textarea {
   margin-top: 6px;
 }
 
+.control__field-title {
+  margin-bottom: 6px;
+}
+
+.control__field-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.control__field-title-row .link {
+  font-size: 0.8rem;
+}
+
 .control__active {
   font-size: 0.95rem;
 }
