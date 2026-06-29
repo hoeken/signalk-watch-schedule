@@ -246,6 +246,7 @@ textarea {
 }
 
 .shift__time {
+  width: 5.5rem;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   font-size: 1rem;
@@ -267,6 +268,7 @@ textarea {
 }
 
 .shift__label {
+  font-size: 1rem;
   font-weight: 500;
   color: var(--muted);
 }
