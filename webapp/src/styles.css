@@ -253,7 +253,7 @@ textarea {
 }
 
 .shift__time {
-  width: 5.5rem;
+  width: 7.5rem;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   font-size: 1rem;
@@ -536,7 +536,8 @@ input {
 }
 
 .login-modal__panel {
-  position: relative; /* anchors the close button */
+  position: relative;
+  /* anchors the close button */
   width: 100%;
   max-width: 340px;
 }
