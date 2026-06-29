@@ -4,6 +4,7 @@
  */
 
 const BASE = '/plugins/signalk-watch-schedule';
+const SK_SELF = '/signalk/v1/api/vessels/self';
 const json = { 'Content-Type': 'application/json' };
 
 async function getJSON(url) {
@@ -12,11 +13,56 @@ async function getJSON(url) {
   return res.json();
 }
 
-/** Composed watch view: { state, system, teams, current, next, schedule }. */
-export const getState = () => getJSON(`${BASE}/api/state`);
+/**
+ * Unwrap a SignalK "full format" subtree into plain values. Leaf nodes carry a
+ * `value` key (alongside meta/$source/timestamp); branch nodes nest children.
+ */
+function unwrapFull(node) {
+  if (node === null || typeof node !== 'object') return node;
+  if ('value' in node) return node.value; // leaf
+  const out = {};
+  for (const [key, child] of Object.entries(node)) {
+    if (key === 'meta' || key === '$source' || key === 'timestamp' || key === 'pgn' || key === 'sentence') {
+      continue;
+    }
+    out[key] = unwrapFull(child);
+  }
+  return out;
+}
 
-/** Watch systems available for the configured crew. */
-export const getSystems = () => getJSON(`${BASE}/api/systems`);
+const EMPTY_STATE = { onWatch: false, startedAt: null, systemId: null };
+
+/**
+ * Composed watch view: { state, system, teams, current, next, schedule }.
+ *
+ * SignalK has no auth-free plugin API, so anonymous viewers get a 401 from
+ * `${BASE}/api/state`. Instead we read the published `watch` tree from the
+ * public SignalK REST API and unwrap its full format into the same composed
+ * shape the writes (`startWatch`/`stopWatch`) return.
+ */
+export async function getState() {
+  let tree;
+  try {
+    tree = await getJSON(`${SK_SELF}/watch`);
+  } catch (e) {
+    if (e.code === 404) return { state: { ...EMPTY_STATE }, teams: [], schedule: [] };
+    throw e;
+  }
+  return unwrapFull(tree);
+}
+
+/**
+ * Watch systems available for the configured crew. Served by the auth-gated
+ * plugin API, so anonymous viewers get nothing — that's fine, the system picker
+ * is only shown to users who can control the watch (and are thus logged in).
+ */
+export async function getSystems() {
+  try {
+    return await getJSON(`${BASE}/api/systems`);
+  } catch {
+    return [];
+  }
+}
 
 /**
  * SignalK login status. Degrades gracefully to "not logged in / auth required"
