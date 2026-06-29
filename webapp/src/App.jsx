@@ -3,7 +3,7 @@ import { resolveSchedule, snapToHour } from "@core/index.js";
 import * as api from "./api.js";
 import ScheduleList from "./components/ScheduleList.jsx";
 import WatchControl from "./components/WatchControl.jsx";
-import LoginPanel from "./components/LoginPanel.jsx";
+import LoginModal from "./components/LoginModal.jsx";
 import ThemeToggle from "./components/ThemeToggle.jsx";
 
 const SHIFT_COUNT = 12;
@@ -20,6 +20,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showLogin, setShowLogin] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
   const refresh = useCallback(async () => {
@@ -127,6 +128,7 @@ export default function App() {
       if (e.code === 401) {
         setLoginStatus({ status: "notLoggedIn", authenticationRequired: true });
         setError("Your session expired — please log in again.");
+        setShowLogin(true);
       } else {
         setError(e.message);
       }
@@ -141,6 +143,7 @@ export default function App() {
   const doLogin = async (u, p) => {
     await api.login(u, p);
     await refresh();
+    setShowLogin(false);
   };
   const doLogout = async () => {
     await api.logout();
@@ -162,21 +165,25 @@ export default function App() {
             <button className="link" onClick={doLogout}>
               {loginStatus.username ? `Log out · ${loginStatus.username}` : "Log out"}
             </button>
+          ) : !controllable ? (
+            <button className="link" onClick={() => setShowLogin(true)}>
+              Log in
+            </button>
           ) : null}
         </div>
       </header>
 
       {error ? <div className="warn banner">{error}</div> : null}
 
-      <main className="layout">
+      <main className={`layout${controllable ? "" : " layout--solo"}`}>
         <section className="panel schedule-panel">
           <h2>{onWatch ? "On Watch" : "Schedule"}</h2>
           <ScheduleList shifts={shifts} now={now} preview={preview} />
         </section>
 
-        <aside className="panel control-panel">
-          <h2>Control</h2>
-          {controllable ? (
+        {controllable ? (
+          <aside className="panel control-panel">
+            <h2>Control</h2>
             <WatchControl
               onWatch={onWatch}
               systems={systems}
@@ -195,11 +202,11 @@ export default function App() {
               onStop={doStop}
               busy={busy}
             />
-          ) : (
-            <LoginPanel onLogin={doLogin} />
-          )}
-        </aside>
+          </aside>
+        ) : null}
       </main>
+
+      <LoginModal open={showLogin} onClose={() => setShowLogin(false)} onLogin={doLogin} />
     </div>
   );
 }
