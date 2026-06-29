@@ -99,6 +99,33 @@ function cycleAnchor(system, startedAt) {
 }
 
 /**
+ * The amount by which a system's stored team assignment must be rotated so the
+ * team on duty at `startedAt` becomes the first team in the ordered list.
+ *
+ * Anchored systems align their boundaries to local midnight, so the segment a
+ * chosen start time lands in carries whatever team the rotation pattern placed
+ * there relative to midnight — not necessarily the first crew member listed.
+ * This returns that segment's stored teamIndex; subtracting it (mod teamCount)
+ * from every segment re-bases the rotation so the chosen start gets team 0,
+ * while the clock-aligned boundaries and the fair rotation are both preserved.
+ *
+ * Rotating systems already begin their cycle at `startedAt` (offset 0 → team 0),
+ * so the shift is 0 for them.
+ * @param {WatchSystem} system
+ * @param {number} startedAt epoch ms
+ * @returns {number} stored teamIndex to treat as the first on watch
+ */
+function teamShift(system, startedAt) {
+  const cycleMs = system.cycleDuration * MS_PER_MIN;
+  const elapsed = Math.max(0, startedAt - cycleAnchor(system, startedAt));
+  const posMin = (elapsed % cycleMs) / MS_PER_MIN;
+  const seg = system.segments.find(
+    (s) => posMin >= s.offset && posMin < s.offset + s.duration,
+  );
+  return seg ? seg.teamIndex : 0;
+}
+
+/**
  * Validate that a system's segments are contiguous, cover the whole cycle, and
  * reference valid teams.
  * @param {WatchSystem} system
@@ -170,6 +197,11 @@ export function getCurrentSegment(system, startedAt, now) {
  * Resolve an ordered list of upcoming concrete shifts, starting with the one
  * active at `now` (or the first upcoming shift if `now` is before `startedAt`).
  *
+ * The rotation is re-based so the first team in `teams` is on watch for the
+ * segment containing `startedAt`: anchored systems keep their clock-aligned
+ * boundaries but no longer let midnight decide who leads off, and rotating
+ * systems are unaffected (their cycle already begins at `startedAt`).
+ *
  * @param {WatchSystem} system
  * @param {WatchTeam[]} teams
  * @param {number} startedAt epoch ms (already snapped to the hour)
@@ -186,6 +218,12 @@ export function resolveSchedule(system, teams, startedAt, now, opts = {}) {
   const cycleMs = system.cycleDuration * MS_PER_MIN;
   const segs = [...system.segments].sort((a, b) => a.offset - b.offset);
 
+  // Re-base the rotation so the team on duty at `startedAt` is first in the
+  // ordered list — for anchored systems the chosen start time, not midnight,
+  // decides who leads off. teamCount is the modulus for the rotation.
+  const shift = teamShift(system, startedAt);
+  const teamCount = system.teamCount;
+
   // Locate the starting segment: the one containing `now`, else the first.
   const elapsed = Math.max(0, now - anchor);
   let cycleIndex = Math.floor(elapsed / cycleMs);
@@ -199,17 +237,18 @@ export function resolveSchedule(system, teams, startedAt, now, opts = {}) {
   let si = segIdx;
   for (let n = 0; n < count; n++) {
     const seg = segs[si];
+    const teamIndex = (((seg.teamIndex - shift) % teamCount) + teamCount) % teamCount;
     const startTime = anchor + ci * cycleMs + seg.offset * MS_PER_MIN;
     const endTime = startTime + seg.duration * MS_PER_MIN;
-    const team = teams[seg.teamIndex];
+    const team = teams[teamIndex];
     shifts.push({
-      teamIndex: seg.teamIndex,
-      teamId: `team${seg.teamIndex + 1}`,
-      teamName: team?.name ?? `Team ${seg.teamIndex + 1}`,
+      teamIndex,
+      teamId: `team${teamIndex + 1}`,
+      teamName: team?.name ?? `Team ${teamIndex + 1}`,
       startTime,
       endTime,
       durationMin: seg.duration,
-      color: getTeamColor(seg.teamIndex),
+      color: getTeamColor(teamIndex),
       label: seg.label,
       isCurrent: now >= startTime && now < endTime,
       cycleIndex: ci,

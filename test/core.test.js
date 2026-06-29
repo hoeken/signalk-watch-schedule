@@ -138,6 +138,27 @@ test("anchored systems align to clock hours regardless of start time", () => {
   assert.equal(first.isCurrent, true);
 });
 
+test("anchored systems put the first ordered team on the start-time watch", () => {
+  const sys = getSystemById("rn-dog-watches");
+  // Start at 15:00 (the Afternoon watch, 12:00–16:00). The first team in the
+  // ordered list must lead off on that section, not at midnight.
+  const start = new Date(2026, 0, 1, 15, 0, 0).getTime();
+  const shifts = resolveSchedule(sys, TEAMS, start, start + 5 * MIN, { count: 3 });
+
+  assert.equal(shifts[0].label, "Afternoon");
+  assert.equal(shifts[0].isCurrent, true);
+  assert.equal(shifts[0].teamIndex, 0, "start-time watch is re-based to team 0");
+  assert.equal(shifts[0].teamName, "Port", "first ordered team is on watch");
+  // The rotation still alternates from there.
+  assert.deepEqual(shifts.map((s) => s.teamIndex), [0, 1, 0]);
+
+  // Reordering the teams puts the new leader on the start-time watch.
+  const reordered = orderTeams(TEAMS, [1, 0, 2]); // Starboard first
+  const [lead] = resolveSchedule(sys, reordered, start, start + 5 * MIN, { count: 1 });
+  assert.equal(lead.teamIndex, 0);
+  assert.equal(lead.teamName, "Starboard");
+});
+
 test("rotating systems start the cycle from startedAt, not the clock", () => {
   const sys = getSystemById("fixed-4-4");
   assert.equal(sys.anchored, false);
