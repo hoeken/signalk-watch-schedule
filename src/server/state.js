@@ -2,17 +2,21 @@
  * Runtime watch state with JSON-file persistence.
  *
  * Only the small, authoritative runtime flags live here — whether the boat is
- * on watch, when the watch began (snapped to the hour), and which system is
- * active. Team/crew/rotation definitions live in plugin config, not here.
+ * on watch, when the watch began (snapped to the hour), which system is active,
+ * and the chosen team order for this watch. Team/crew/rotation definitions live
+ * in plugin config, not here.
  *
- * @typedef {{ onWatch: boolean, startedAt: number|null, systemId: string|null }} WatchState
+ * `teamOrder` is a permutation of the configured teams' indices (or null for the
+ * natural config order): the team at position 0 is first on watch.
+ *
+ * @typedef {{ onWatch: boolean, startedAt: number|null, systemId: string|null, teamOrder: number[]|null }} WatchState
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 
 /** @type {WatchState} */
-const DEFAULT_STATE = { onWatch: false, startedAt: null, systemId: null };
+const DEFAULT_STATE = { onWatch: false, startedAt: null, systemId: null, teamOrder: null };
 
 /**
  * @param {object} app SignalK app object (provides getDataDirPath + logging).

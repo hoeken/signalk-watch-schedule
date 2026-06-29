@@ -5,11 +5,13 @@
  *   GET  /api/state         current state + resolved schedule        (read)
  *   GET  /api/config        teams + defaults                         (read)
  *   GET  /api/systems       available watch systems for this crew    (read)
- *   POST /api/watch/start   { systemId } → start (snaps to the hour) (write)
+ *   POST /api/watch/start   { systemId, startAt?, teamOrder? } → start (write)
+ *                           startAt snaps to the hour (defaults to now);
+ *                           teamOrder picks which team is first on watch.
  *   POST /api/watch/stop    stop the watch                           (write)
  */
 
-import { availableSystems, getSystemById, snapToHour } from '../core/index.js';
+import { availableSystems, getSystemById, snapToHour, isTeamOrder } from '../core/index.js';
 import { buildWatchData } from './publisher.js';
 
 /** Is SignalK security turned on for this server? */
@@ -77,8 +79,18 @@ export function registerRoutes(router, ctx) {
       return res.status(400).json({ error: `unknown or unavailable watch system: ${requestedId}` });
     }
 
-    const startedAt = snapToHour(Date.now(), options.snapMode || 'nearest');
-    const newState = store.set({ onWatch: true, startedAt, systemId: system.id });
+    // Honor a requested start time (the UI offers ±12h of whole hours); fall
+    // back to now. Always snapped to a whole hour so segments land cleanly.
+    const requestedStartAt = req.body && req.body.startAt;
+    const baseTime = Number.isFinite(requestedStartAt) ? requestedStartAt : Date.now();
+    const startedAt = snapToHour(baseTime, options.snapMode || 'nearest');
+
+    // Honor a requested team order (which team is first on watch); ignore
+    // anything that isn't a valid permutation of the configured teams.
+    const requestedOrder = req.body && req.body.teamOrder;
+    const teamOrder = isTeamOrder(requestedOrder, teams.length) ? requestedOrder : null;
+
+    const newState = store.set({ onWatch: true, startedAt, systemId: system.id, teamOrder });
     publishNow();
     res.json(buildWatchData(newState, options, Date.now()));
   });
@@ -88,7 +100,7 @@ export function registerRoutes(router, ctx) {
     if (!store) return notReady(res);
     if (!canWrite(app, req)) return res.status(401).json({ error: 'login required' });
 
-    const newState = store.set({ onWatch: false, startedAt: null });
+    const newState = store.set({ onWatch: false, startedAt: null, teamOrder: null });
     publishNow();
     res.json(buildWatchData(newState, getOptions(), Date.now()));
   });

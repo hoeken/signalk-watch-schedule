@@ -11,7 +11,10 @@ color-coded, responsive schedule on any device.
 
 - **Watch teams + crew** configured in the plugin settings.
 - **Built-in rotation systems**: 4-on/4-off, 3-on/3-off, 6-on/6-off, and Royal Navy dog watches.
-- **Whole-hour starts** — the schedule always begins on a clean clock hour.
+- **Whole-hour starts** — the schedule always begins on a clean clock hour, with a start-time
+  picker covering ±12 hours so you can log a watch that began earlier or schedule one ahead.
+- **Pick who's first** — drag (or nudge with ▲/▼) the watch teams into order; the team on top
+  starts at the chosen time, the rest follow.
 - **Live, color-coded schedule** starting with the active shift, highlighted and counting down.
 - **Auth-aware UI** — anyone can view the schedule; logged-in users get start/stop control.
 - **Everything published under `watch.*`** so other SignalK consumers can use it too.
@@ -76,7 +79,7 @@ Base: `/plugins/signalk-watch-schedule/api`
 | GET | `/state` | read | Current state + resolved schedule. |
 | GET | `/config` | read | Teams + defaults. |
 | GET | `/systems` | read | Available watch systems. |
-| POST | `/watch/start` | write | Body `{ systemId }`; starts on the hour. |
+| POST | `/watch/start` | write | Body `{ systemId, startAt?, teamOrder? }`. `startAt` (epoch ms) snaps to the hour and defaults to now; `teamOrder` is a permutation of team indices putting one team first. |
 | POST | `/watch/stop` | write | Stops the watch. |
 
 Write endpoints require an authenticated SignalK user when server security is enabled.

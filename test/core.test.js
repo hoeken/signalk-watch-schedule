@@ -11,6 +11,8 @@ import {
   BUILTIN_SYSTEMS,
   getSystemById,
   availableSystems,
+  isTeamOrder,
+  orderTeams,
 } from '../src/core/index.js';
 
 const MIN = 60_000;
@@ -164,4 +166,31 @@ test('availableSystems shows only systems matching the configured team count', (
 
   // A two-team rotation must not leak into a three-team crew's list.
   assert.ok(!availableSystems(3).some((s) => s.id === 'fixed-4-4'));
+});
+
+test('isTeamOrder accepts only permutations of [0, n)', () => {
+  assert.equal(isTeamOrder([0, 1, 2], 3), true);
+  assert.equal(isTeamOrder([2, 0, 1], 3), true);
+  assert.equal(isTeamOrder([], 0), true);
+  assert.equal(isTeamOrder([0, 0, 1], 3), false, 'duplicate index');
+  assert.equal(isTeamOrder([0, 1], 3), false, 'wrong length');
+  assert.equal(isTeamOrder([0, 1, 3], 3), false, 'index out of range');
+  assert.equal(isTeamOrder([0, 1, 1.5], 3), false, 'non-integer index');
+  assert.equal(isTeamOrder('nope', 3), false, 'not an array');
+  assert.equal(isTeamOrder(null, 2), false);
+});
+
+test('orderTeams reorders by a valid permutation, else returns teams unchanged', () => {
+  const reordered = orderTeams(TEAMS, [2, 0, 1]);
+  assert.deepEqual(reordered.map((t) => t.name), ['Standby', 'Port', 'Starboard']);
+  // The team listed first becomes teamIndex 0 — the first on watch.
+  const sys = getSystemById('fixed-4-8'); // a 3-team rotation (4h on, 8h off)
+  assert.equal(sys.teamCount, 3);
+  const [first] = resolveSchedule(sys, reordered, 0, 0, { count: 1 });
+  assert.equal(first.teamName, 'Standby');
+
+  // Invalid orders are ignored rather than dropping/duplicating a team.
+  assert.equal(orderTeams(TEAMS, [0, 0, 1]), TEAMS);
+  assert.equal(orderTeams(TEAMS, [0, 1]), TEAMS);
+  assert.equal(orderTeams(TEAMS, null), TEAMS);
 });

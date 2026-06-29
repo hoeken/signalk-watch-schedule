@@ -8,7 +8,7 @@
  * @typedef {import('./state.js').WatchState} WatchState
  */
 
-import { resolveSchedule, getSystemById, availableSystems } from '../core/index.js';
+import { resolveSchedule, getSystemById, availableSystems, orderTeams } from '../core/index.js';
 
 /**
  * Assemble the full watch view.
@@ -17,8 +17,12 @@ import { resolveSchedule, getSystemById, availableSystems } from '../core/index.
  * @param {number} now epoch ms
  */
 export function buildWatchData(state, options, now) {
-  const teams = options.teams ?? [];
-  const systems = availableSystems(teams.length);
+  const baseTeams = options.teams ?? [];
+  // Apply the chosen watch order so position 0 is first on watch. Both the
+  // resolved schedule and the published `watch.teams` use this order, and the
+  // webapp recomputes from the same order — they cannot disagree.
+  const teams = orderTeams(baseTeams, state.teamOrder);
+  const systems = availableSystems(baseTeams.length);
   const system = state.systemId ? getSystemById(state.systemId, systems) ?? null : null;
 
   let schedule = [];

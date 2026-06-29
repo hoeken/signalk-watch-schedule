@@ -37,6 +37,38 @@ export function snapToHour(epochMs, mode = 'nearest') {
 }
 
 /**
+ * True if `order` is a permutation of the integers [0, n): exactly the indices
+ * 0..n-1, each appearing once. Used to validate a requested team ordering before
+ * it is stored or applied.
+ * @param {unknown} order
+ * @param {number} n
+ * @returns {boolean}
+ */
+export function isTeamOrder(order, n) {
+  if (!Array.isArray(order) || order.length !== n) return false;
+  const seen = new Set();
+  for (const i of order) {
+    if (!Number.isInteger(i) || i < 0 || i >= n || seen.has(i)) return false;
+    seen.add(i);
+  }
+  return true;
+}
+
+/**
+ * Reorder a team list by a permutation of its indices, so the team listed first
+ * in `order` becomes teamIndex 0 — i.e. the first on watch. Returns `teams`
+ * unchanged when `order` is missing or not a valid permutation of its indices,
+ * so a stale/garbage order can never drop or duplicate a team.
+ * @param {WatchTeam[]} teams
+ * @param {number[]|null|undefined} order
+ * @returns {WatchTeam[]}
+ */
+export function orderTeams(teams, order) {
+  if (!Array.isArray(teams) || !isTeamOrder(order, teams.length)) return teams;
+  return order.map((i) => teams[i]);
+}
+
+/**
  * Snap an epoch-ms timestamp down to the most recent local midnight. Used as the
  * cycle anchor for clock-anchored systems, so segment offset 0 lands at 00:00.
  * @param {number} epochMs

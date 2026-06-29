@@ -29,6 +29,20 @@ test('buildWatchData resolves current/next/schedule when on watch', () => {
   assert.equal(data.system.id, 'fixed-4-4');
 });
 
+test('buildWatchData applies teamOrder to the schedule and published teams', () => {
+  const startedAt = new Date(2026, 0, 1, 0, 0, 0).getTime();
+  const now = startedAt + 30 * 60_000;
+  const data = buildWatchData(
+    { onWatch: true, startedAt, systemId: 'fixed-4-4', teamOrder: [1, 0] },
+    OPTIONS,
+    now,
+  );
+  // Starboard is listed first, so it stands the first watch.
+  assert.equal(data.teams[0].name, 'Starboard');
+  assert.equal(data.current.teamName, 'Starboard');
+  assert.equal(data.next.teamName, 'Port');
+});
+
 // --- helpers to exercise the plugin + routes with a mock SignalK app ---
 
 function makeApp() {
@@ -107,6 +121,72 @@ test('start route snaps to the hour and stop clears state', async () => {
 
   plugin.stop();
   reloaded.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test('start honors a requested start time and team order', async () => {
+  const app = makeApp();
+  const plugin = createPlugin(app);
+  plugin.start(OPTIONS); // 2 teams: Port (0), Starboard (1)
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  // A whole hour two hours from now, plus an order that puts Starboard first.
+  const startAt = new Date(2026, 5, 1, 18, 0, 0).getTime();
+  const res = makeRes();
+  await router.routes['post /api/watch/start'](
+    { body: { systemId: 'fixed-4-4', startAt, teamOrder: [1, 0] } },
+    res,
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.state.startedAt, startAt, 'uses the requested (already whole-hour) start time');
+  assert.deepEqual(res.body.state.teamOrder, [1, 0]);
+  // The reordered team is first on watch in the published teams list.
+  assert.equal(res.body.teams[0].name, 'Starboard');
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test('start snaps an off-hour requested start time and ignores a bad team order', async () => {
+  const app = makeApp();
+  const plugin = createPlugin(app);
+  plugin.start(OPTIONS);
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  const offHour = new Date(2026, 5, 1, 18, 40, 0).getTime();
+  const res = makeRes();
+  await router.routes['post /api/watch/start'](
+    { body: { systemId: 'fixed-4-4', startAt: offHour, teamOrder: [9, 9] } },
+    res,
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(new Date(res.body.state.startedAt).getMinutes(), 0, 'snapped to a whole hour');
+  assert.equal(res.body.state.teamOrder, null, 'invalid order ignored');
+  assert.equal(res.body.teams[0].name, 'Port', 'natural order preserved');
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test('stop clears the team order', async () => {
+  const app = makeApp();
+  const plugin = createPlugin(app);
+  plugin.start(OPTIONS);
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  const startRes = makeRes();
+  await router.routes['post /api/watch/start']({ body: { systemId: 'fixed-4-4', teamOrder: [1, 0] } }, startRes);
+  assert.deepEqual(startRes.body.state.teamOrder, [1, 0]);
+
+  const stopRes = makeRes();
+  await router.routes['post /api/watch/stop']({ body: {} }, stopRes);
+  assert.equal(stopRes.body.state.teamOrder, null);
+  assert.equal(stopRes.body.teams[0].name, 'Port', 'back to natural order off watch');
+
+  plugin.stop();
   fs.rmSync(app.dir, { recursive: true, force: true });
 });
 

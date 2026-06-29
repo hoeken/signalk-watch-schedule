@@ -1,8 +1,25 @@
 /** Small formatting helpers for the UI. */
 
+import { snapToHour } from '@core/index.js';
+
 /** "14:00" in the viewer's local timezone (the boat's clock). */
 export function formatClock(epochMs) {
   return new Date(epochMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+/**
+ * Label for a whole-hour start-time option, read relative to `now`: the clock
+ * time (prefixed with a weekday when it falls on another day, since the picker
+ * spans ±12h across midnight) plus a compact offset in parentheses — "(now)",
+ * "(+3h)", "(−2h)".
+ */
+export function formatHourOption(epochMs, nowMs) {
+  const d = new Date(epochMs);
+  const sameDay = d.toDateString() === new Date(nowMs).toDateString();
+  const time = sameDay ? formatClock(epochMs) : `${d.toLocaleDateString([], { weekday: 'short' })} ${formatClock(epochMs)}`;
+  const diffH = Math.round((epochMs - snapToHour(nowMs, 'nearest')) / 3_600_000);
+  const rel = diffH === 0 ? 'now' : diffH > 0 ? `+${diffH}h` : `−${-diffH}h`;
+  return `${time} (${rel})`;
 }
 
 /** "Monday\n14:00" — weekday on its own line above the clock, for shifts crossing day boundaries. */
@@ -21,9 +38,16 @@ export function formatDuration(minutes) {
   return `${m}m`;
 }
 
-/** Signed gap to a target, as "2h 15m" (absolute value). Empty if past. */
+/** Gap until a future target, as "2h 15m". Empty if the target is now or past. */
 export function untilLabel(targetMs, nowMs) {
   const diff = targetMs - nowMs;
+  if (diff <= 0) return '';
+  return formatDuration(diff / 60000);
+}
+
+/** Time elapsed since a past target, as "2h 15m". Empty if the target is now or future. */
+export function agoLabel(targetMs, nowMs) {
+  const diff = nowMs - targetMs;
   if (diff <= 0) return '';
   return formatDuration(diff / 60000);
 }

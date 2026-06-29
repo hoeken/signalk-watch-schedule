@@ -1,28 +1,41 @@
-import { formatClock } from '../time.js';
+import { formatClock, formatHourOption } from '../time.js';
+import TeamOrderList from './TeamOrderList.jsx';
 
 /**
- * Start/stop control for authenticated users. When idle, a system picker lets
- * the captain choose the rotation (the schedule preview updates live as they
- * change it). When on watch, shows the active system and a stop button.
+ * Start/stop control for authenticated users. When idle, the captain picks the
+ * rotation, the start hour (±12h of whole hours), and the team order — the
+ * schedule preview updates live as they change any of them. When on watch, shows
+ * the active system and a stop button.
  */
 export default function WatchControl({
   onWatch,
   systems,
   system,
   startedAt,
+  now,
   selectedSystemId,
   onSelect,
+  teams,
+  teamOrder,
+  onReorder,
+  startAt,
+  startOptions,
+  onSelectStartAt,
   onStart,
   onStop,
   busy,
-  startsAt,
 }) {
   if (onWatch) {
+    const future = startedAt && startedAt > now;
     return (
       <div className="control">
         <div className="control__active">
           Running <strong>{system?.name ?? 'watch'}</strong>
-          {startedAt ? <div className="muted">Started at {formatClock(startedAt)}</div> : null}
+          {startedAt ? (
+            <div className="muted">
+              {future ? 'Starts' : 'Started'} at {formatClock(startedAt)}
+            </div>
+          ) : null}
         </div>
         <button className="btn btn--stop" onClick={onStop} disabled={busy}>
           {busy ? 'Stopping…' : 'Stop Watch'}
@@ -50,9 +63,33 @@ export default function WatchControl({
         </select>
       </label>
 
-      {canStart ? (
-        <div className="muted">Starts at {formatClock(startsAt)} (rounded to the hour)</div>
-      ) : (
+      <label className="control__field">
+        <span>Start time</span>
+        <select
+          value={startAt}
+          onChange={(e) => onSelectStartAt(Number(e.target.value))}
+          disabled={!canStart || busy}
+        >
+          {startOptions.map((ms) => (
+            <option key={ms} value={ms}>
+              {formatHourOption(ms, now)}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {canStart && teams.length > 1 ? (
+        <div className="control__field">
+          <span>Watch order</span>
+          <TeamOrderList teams={teams} order={teamOrder} onReorder={onReorder} disabled={busy} />
+          <div className="muted">
+            {teams[teamOrder[0]]?.name ?? 'The first team'} starts at {formatClock(startAt)}; the rest follow in
+            order.
+          </div>
+        </div>
+      ) : null}
+
+      {canStart ? null : (
         <div className="warn">No watch systems available — configure watch teams in the plugin settings.</div>
       )}
 

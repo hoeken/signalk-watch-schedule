@@ -94,7 +94,13 @@ async function post(url, body) {
   return res.json();
 }
 
-export const startWatch = (systemId) => post(`${BASE}/api/watch/start`, { systemId });
+/**
+ * Start the watch. `opts.startAt` (epoch ms, snapped server-side to the hour)
+ * and `opts.teamOrder` (a permutation of team indices, first on watch first)
+ * are optional; omitting them starts now in the natural team order.
+ */
+export const startWatch = (systemId, opts = {}) =>
+  post(`${BASE}/api/watch/start`, { systemId, startAt: opts.startAt, teamOrder: opts.teamOrder });
 export const stopWatch = () => post(`${BASE}/api/watch/stop`);
 
 /** Log in against SignalK; the auth cookie is then sent with future requests. */

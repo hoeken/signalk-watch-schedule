@@ -6,12 +6,16 @@ import WatchControl from './components/WatchControl.jsx';
 import LoginPanel from './components/LoginPanel.jsx';
 
 const SHIFT_COUNT = 12;
+const HOUR_MS = 3_600_000;
+const START_WINDOW_HOURS = 12; // selectable start hours: now ± this many hours
 
 export default function App() {
   const [view, setView] = useState(null); // composed { state, system, teams, ... }
   const [systems, setSystems] = useState([]);
   const [loginStatus, setLoginStatus] = useState(null);
   const [selectedSystemId, setSelectedSystemId] = useState(null);
+  const [startAt, setStartAt] = useState(null); // chosen start hour; null = follow "now"
+  const [teamOrder, setTeamOrder] = useState(null); // permutation of team indices; null = natural
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -68,7 +72,23 @@ export default function App() {
   const teams = view?.teams ?? [];
   const onWatch = state.onWatch;
   const controllable = api.canControl(loginStatus);
-  const startsAt = snapToHour(now, 'nearest');
+
+  // Off watch, the captain chooses the start hour and team order; both feed the
+  // live preview and the start request. The chosen order is a permutation of
+  // indices into `teams` — guarded so a stale order (after a team count change)
+  // falls back to the natural order rather than dropping a team.
+  const naturalOrder = teams.map((_, i) => i);
+  const order = teamOrder && teamOrder.length === teams.length ? teamOrder : naturalOrder;
+  const orderedTeams = order.map((i) => teams[i]);
+
+  const startHour = startAt ?? snapToHour(now, 'nearest');
+  const floorHour = snapToHour(now, 'down');
+  const startOptions = (() => {
+    const hours = new Set();
+    for (let k = -START_WINDOW_HOURS; k <= START_WINDOW_HOURS; k += 1) hours.add(floorHour + k * HOUR_MS);
+    hours.add(startHour); // keep the current selection valid even as `now` drifts
+    return [...hours].sort((a, b) => a - b);
+  })();
 
   // Build the displayed shifts with the SHARED core, recomputed each tick so the
   // current shift and countdowns stay live between server deltas.
@@ -79,11 +99,15 @@ export default function App() {
   } else {
     const selected = systems.find((s) => s.id === selectedSystemId);
     if (selected) {
-      // Preview the rotation as if started now. Clear isCurrent explicitly: we
-      // aren't on watch yet, and for clock-anchored systems `now` would otherwise
-      // land inside the current clock watch and flag it.
-      shifts = resolveSchedule(selected, teams, startsAt, startsAt, { count: SHIFT_COUNT })
-        .map((s) => ({ ...s, isCurrent: false }));
+      // Preview the rotation from the chosen start hour, in the chosen order, but
+      // read against the real clock: once the chosen start has passed (e.g. a
+      // back-dated start) the watch containing `now` is flagged current and the
+      // watches before it read "ended … ago". A future start has nothing current
+      // yet. We recompute isCurrent ourselves rather than letting resolveSchedule
+      // key off `now`, so the list still begins at the start hour.
+      const begun = now >= startHour;
+      shifts = resolveSchedule(selected, orderedTeams, startHour, startHour, { count: SHIFT_COUNT })
+        .map((s) => ({ ...s, isCurrent: begun && now >= s.startTime && now < s.endTime }));
       preview = true;
     }
   }
@@ -105,7 +129,8 @@ export default function App() {
     }
   };
 
-  const doStart = () => handleControl(() => api.startWatch(selectedSystemId));
+  const doStart = () =>
+    handleControl(() => api.startWatch(selectedSystemId, { startAt: startHour, teamOrder: order }));
   const doStop = () => handleControl(() => api.stopWatch());
   const doLogin = async (u, p) => {
     await api.login(u, p);
@@ -150,12 +175,18 @@ export default function App() {
               systems={systems}
               system={view?.system}
               startedAt={state.startedAt}
+              now={now}
               selectedSystemId={selectedSystemId}
               onSelect={setSelectedSystemId}
+              teams={teams}
+              teamOrder={order}
+              onReorder={setTeamOrder}
+              startAt={startHour}
+              startOptions={startOptions}
+              onSelectStartAt={setStartAt}
               onStart={doStart}
               onStop={doStop}
               busy={busy}
-              startsAt={startsAt}
             />
           ) : (
             <LoginPanel onLogin={doLogin} />

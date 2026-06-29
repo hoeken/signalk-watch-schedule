@@ -201,7 +201,8 @@ above. Team count is dynamic (add/remove array items); crew are free-text arrays
 {
   "onWatch": false,        // is the boat currently standing watches?
   "startedAt": null,       // epoch ms, snapped to the hour, when current watch began
-  "systemId": null         // which WatchSystem is active
+  "systemId": null,        // which WatchSystem is active
+  "teamOrder": null        // permutation of team indices (team at position 0 is first on watch); null = config order
 }
 ```
 
@@ -235,10 +236,11 @@ Mounted under the plugin's router base: `/plugins/signalk-watch-schedule/api`.
 | GET    | `/state`         | read        | `{ onWatch, startedAt, systemId, current, next, schedule }` |
 | GET    | `/config`        | read        | `{ teams, defaultSystemId, publishHorizon }` |
 | GET    | `/systems`       | read        | `WatchSystem[]` — built-ins + custom, filtered to `teamCount ≤ teams.length` |
-| POST   | `/watch/start`   | **write**   | body `{ systemId }` → snaps now to whole hour, sets state, returns new `/state` |
-| POST   | `/watch/stop`    | **write**   | clears `onWatch`, returns new `/state` |
+| POST   | `/watch/start`   | **write**   | body `{ systemId, startAt?, teamOrder? }` → snaps `startAt` (default now) to a whole hour, applies `teamOrder`, sets state, returns new `/state` |
+| POST   | `/watch/stop`    | **write**   | clears `onWatch` and `teamOrder`, returns new `/state` |
 
 - Start with no/invalid `systemId` falls back to `defaultSystemId`.
+- `startAt` (epoch ms) lets the caller begin a watch up to ±12h from now; it is always snapped to a whole hour. `teamOrder` must be a permutation of the configured teams' indices, else it is ignored (natural order). Both are applied by the shared core (`orderTeams`) so the published `watch.teams`/`watch.schedule` and the UI's recompute agree.
 - Start while already on watch returns the current state (idempotent) unless `?force=1` restarts.
 - Write endpoints rely on SignalK's security layer (`server.securityStrategy`); unauthenticated
   writes get 401, which the UI uses to drive the login prompt.
@@ -276,10 +278,15 @@ Mounted under the plugin's router base: `/plugins/signalk-watch-schedule/api`.
 
 **Watch control** (authed only):
 - **System picker**: dropdown of systems from `/systems`. Selecting a system **dynamically
-  re-renders** the previewed schedule (using `core/resolveSchedule` against the current/forecast
-  start hour) before committing — so the captain sees the rotation before starting.
+  re-renders** the previewed schedule (using `core/resolveSchedule` against the chosen start
+  hour and team order) before committing — so the captain sees the rotation before starting.
+- **Start-time picker**: dropdown of every whole hour from now−12h to now+12h, defaulting to the
+  nearest hour, so a watch can be logged as having begun earlier or scheduled to begin later.
+- **Watch order**: a reorderable list of the configured teams (with their crew). Drag to reorder,
+  or use the ▲/▼ buttons (so it works on touch screens and the keyboard). The team at the top
+  starts at the chosen time; the rest follow in order. The preview updates live.
 - **Start / Stop** button:
-  - Start → `POST /watch/start { systemId }`; UI shows the snapped whole-hour start time.
+  - Start → `POST /watch/start { systemId, startAt, teamOrder }`; UI shows the chosen whole-hour start time.
   - Stop → `POST /watch/stop`.
 - Reflects live server state (disabled/loading states during requests).
 
