@@ -2,16 +2,14 @@
 
 /** "14:00" in the viewer's local timezone (the boat's clock). */
 export function formatClock(epochMs) {
-  return new Date(epochMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(epochMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-/** "Mon 14:00" — clock plus weekday, for shifts crossing day boundaries. */
+/** "Monday\n14:00" — weekday on its own line above the clock, for shifts crossing day boundaries. */
 export function formatClockDay(epochMs) {
-  return new Date(epochMs).toLocaleString([], {
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const d = new Date(epochMs);
+  const weekday = d.toLocaleDateString([], { weekday: 'long' });
+  return `${weekday}\n${formatClock(epochMs)}`;
 }
 
 /** "4h", "3h 30m", "45m" from a minute count. */

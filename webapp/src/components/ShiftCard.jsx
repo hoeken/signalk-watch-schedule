@@ -16,8 +16,6 @@ export default function ShiftCard({ shift, now, withDay }) {
     <li className={`shift${isCurrent ? ' shift--current' : ''}`} style={style}>
       <div className="shift__time">
         {fmt(shift.startTime)}
-        <span className="shift__dash">–</span>
-        {fmt(shift.endTime)}
       </div>
 
       <div className="shift__body">

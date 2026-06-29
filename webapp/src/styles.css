@@ -59,17 +59,28 @@ body {
   background: var(--muted);
   box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
 }
+
 .status-dot.on {
   background: var(--start);
   animation: pulse 2s infinite;
 }
+
 .status-dot.off {
   background: var(--muted);
 }
+
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
-  70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55);
+  }
+
+  70% {
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
 }
 
 .link {
@@ -86,14 +97,16 @@ body {
   grid-template-columns: 1fr;
   gap: 16px;
 }
+
 @media (min-width: 820px) {
   .layout {
     grid-template-columns: 1fr 320px;
     align-items: start;
   }
+
   .control-panel {
     position: sticky;
-    top: 76px;
+    top: 0px;
   }
 }
 
@@ -104,6 +117,7 @@ body {
   padding: 16px;
   box-shadow: var(--shadow);
 }
+
 .panel h2 {
   margin: 0 0 12px;
   font-size: 0.85rem;
@@ -134,6 +148,7 @@ body {
   padding: 12px 14px;
   transition: transform 0.15s ease, background 0.2s ease;
 }
+
 .shift--current {
   border-color: transparent;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), var(--shadow);
@@ -144,8 +159,9 @@ body {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   font-size: 1rem;
-  white-space: nowrap;
+  white-space: pre-line;
 }
+
 .shift__dash {
   color: var(--muted);
   margin: 0 2px;
@@ -154,13 +170,16 @@ body {
 .shift__body {
   min-width: 0;
 }
+
 .shift__team {
   font-weight: 700;
 }
+
 .shift__label {
   font-weight: 500;
   color: var(--muted);
 }
+
 .shift__crew {
   color: var(--muted);
   font-size: 0.9rem;
@@ -173,10 +192,12 @@ body {
   text-align: right;
   white-space: nowrap;
 }
+
 .shift__dur {
   font-weight: 600;
   font-size: 0.9rem;
 }
+
 .shift__status {
   font-size: 0.8rem;
   display: flex;
@@ -211,6 +232,7 @@ body {
   flex-direction: column;
   gap: 12px;
 }
+
 .control__field {
   display: flex;
   flex-direction: column;
@@ -218,6 +240,7 @@ body {
   font-size: 0.85rem;
   color: var(--muted);
 }
+
 .control__active {
   font-size: 0.95rem;
 }
@@ -242,13 +265,16 @@ input {
   cursor: pointer;
   color: #051018;
 }
+
 .btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
 .btn--start {
   background: var(--start);
 }
+
 .btn--stop {
   background: var(--stop);
   color: #fff;
@@ -262,11 +288,13 @@ input {
   color: var(--muted);
   font-size: 0.85rem;
 }
+
 .empty {
   color: var(--muted);
   padding: 20px 4px;
   text-align: center;
 }
+
 .warn {
   color: #fecaca;
   background: rgba(239, 68, 68, 0.12);
@@ -275,6 +303,7 @@ input {
   padding: 10px 12px;
   font-size: 0.9rem;
 }
+
 .banner {
   margin-bottom: 14px;
 }
