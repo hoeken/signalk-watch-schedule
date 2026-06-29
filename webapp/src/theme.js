@@ -1,9 +1,7 @@
 // The active theme lives on <html data-theme>. The inline bootstrap in
-// index.html resolves it before first paint (saved choice -> ?mode query ->
-// OS preference); this module only reads, toggles, and persists it. An explicit
-// toggle is the user's choice, so it persists and wins on the next load.
-
-const STORAGE_KEY = "theme";
+// index.html resolves it before first paint (?mode query -> OS preference);
+// this module only reads and toggles it. The toggle is session-only: it is
+// never persisted, so each reload re-resolves from the query param / OS.
 
 // Keep the browser chrome (mobile address bar) in step with the page background.
 const META_COLOR = { dark: "#0b1220", light: "#f1f5f9" };
@@ -22,16 +20,10 @@ function syncMeta(theme) {
 
 export function setTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
-  try {
-    localStorage.setItem(STORAGE_KEY, theme);
-  } catch {
-    // Storage can be blocked (private mode); the toggle still works this session.
-  }
   syncMeta(theme);
 }
 
-// Align the address-bar color with whatever the bootstrap resolved, without
-// re-persisting it — only an explicit toggle should be treated as a choice.
+// Align the address-bar color with whatever the bootstrap resolved.
 export function initThemeMeta() {
   syncMeta(getTheme());
 }
