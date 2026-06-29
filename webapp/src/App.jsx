@@ -4,6 +4,7 @@ import * as api from "./api.js";
 import ScheduleList from "./components/ScheduleList.jsx";
 import WatchControl from "./components/WatchControl.jsx";
 import LoginPanel from "./components/LoginPanel.jsx";
+import ThemeToggle from "./components/ThemeToggle.jsx";
 
 const SHIFT_COUNT = 12;
 const HOUR_MS = 3_600_000;
@@ -154,6 +155,7 @@ export default function App() {
         <div className="topbar__title">
           <span className={`status-dot ${onWatch ? "on" : "off"}`} />
           Watch Schedule
+          <ThemeToggle />
         </div>
         <div className="topbar__right">
           {loggedIn ? (

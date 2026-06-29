@@ -1,3 +1,6 @@
+/* Dark is the default (and the fallback if the theme bootstrap never runs); the
+   light palette below overrides via <html data-theme="light">. Only color tokens
+   differ between the two — sizing tokens like --radius stay in :root. */
 :root {
   --bg: #0b1220;
   --panel: #131c2e;
@@ -10,6 +13,27 @@
   --start: #22c55e;
   --radius: 14px;
   --shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  --ring: rgba(255, 255, 255, 0.08);
+  --warn-text: #fecaca;
+  --warn-bg: rgba(239, 68, 68, 0.12);
+  --warn-border: rgba(239, 68, 68, 0.4);
+}
+
+:root[data-theme="light"] {
+  --bg: #eef2f8;
+  --panel: #ffffff;
+  --panel-2: #f3f6fb;
+  --line: #d6dded;
+  --text: #0f1b2d;
+  --muted: #59678a;
+  --accent: #0284c7;
+  --stop: #dc2626;
+  --start: #16a34a;
+  --shadow: 0 6px 20px rgba(15, 23, 42, 0.12);
+  --ring: rgba(15, 23, 42, 0.12);
+  --warn-text: #b91c1c;
+  --warn-bg: #fef2f2;
+  --warn-border: #fca5a5;
 }
 
 * {
@@ -113,6 +137,35 @@ textarea {
   font-size: 0.9rem;
 }
 
+.theme-toggle {
+  /* margin-left replaces a flexbox `gap` (unsupported before Chromium 84). */
+  margin-left: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.theme-toggle:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.theme-toggle svg {
+  display: block;
+}
+
 /* ---- layout: single column on mobile, two columns on wide ---- */
 .layout {
   display: grid;
@@ -181,7 +234,7 @@ textarea {
 .shift--current {
   border-color: transparent;
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 0 1px var(--ring),
     var(--shadow);
   transform: translateY(-1px);
 }
@@ -439,9 +492,9 @@ input {
 }
 
 .warn {
-  color: #fecaca;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: var(--warn-text);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 0.9rem;
