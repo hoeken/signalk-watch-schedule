@@ -11,12 +11,11 @@
  */
 
 /**
- * A watch TEAM — a named group of crew. Teams are ordered; rotations reference
- * them by 0-based index (their position in the array is their stable key), so a
- * rotation preset is reusable for any crew.
+ * A watch TEAM — one watch in the rotation. Teams are ordered; rotations
+ * reference them by 0-based index (their position in the array is their stable
+ * key), so a rotation preset is reusable for any set of teams.
  * @typedef {Object} WatchTeam
- * @property {string} name    Display name, e.g. "Port Watch".
- * @property {string[]} crew  Crew member names assigned to this team.
+ * @property {string} name    Display name, e.g. "Port Watch" or a crew member's name.
  */
 
 /**
@@ -58,7 +57,6 @@
  * @property {number} teamIndex
  * @property {string} teamId       Derived from position, e.g. "team1" for teamIndex 0.
  * @property {string} teamName
- * @property {string[]} crew
  * @property {number} startTime    Epoch ms.
  * @property {number} endTime      Epoch ms.
  * @property {number} durationMin

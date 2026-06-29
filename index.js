@@ -36,21 +36,17 @@ export default function (app) {
       teams: {
         type: "array",
         title: "Watch Teams",
-        description: "Each team is a group of crew that stands watch together. Add a team per watch.",
+        description:
+          "One entry per watch, in rotation order. Name it whatever you like — a watch name (e.g. Port Watch) or, if you prefer, the crew member(s) standing it (e.g. Alice & Bob).",
         default: [
-          { name: "Watch 1", crew: [] },
-          { name: "Watch 2", crew: [] },
+          { name: "Watch 1" },
+          { name: "Watch 2" },
         ],
         items: {
           type: "object",
           required: ["name"],
           properties: {
-            name: { type: "string", title: "Name", description: "e.g. Port Watch" },
-            crew: {
-              type: "array",
-              title: "Crew",
-              items: { type: "string" },
-            },
+            name: { type: "string", title: "Name", description: "e.g. Port Watch, or a crew member's name" },
           },
         },
       },

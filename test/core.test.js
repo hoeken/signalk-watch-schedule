@@ -19,9 +19,9 @@ const MIN = 60_000;
 const HOUR = 3_600_000;
 
 const TEAMS = [
-  { name: "Port", crew: ["Alice", "Bob"] },
-  { name: "Starboard", crew: ["Carol", "Dave"] },
-  { name: "Standby", crew: ["Erin"] },
+  { name: "Port" },
+  { name: "Starboard" },
+  { name: "Standby" },
 ];
 
 test("snapToHour rounds to a whole local hour", () => {
@@ -89,7 +89,6 @@ test("resolveSchedule starts with the current shift and walks the rotation", () 
   assert.equal(shifts[0].isCurrent, true);
   assert.equal(shifts[0].teamIndex, 0);
   assert.equal(shifts[0].teamName, "Port");
-  assert.deepEqual(shifts[0].crew, ["Alice", "Bob"]);
   assert.equal(shifts[0].startTime, start);
   assert.equal(shifts[0].endTime, start + 4 * HOUR);
   assert.equal(shifts[0].color, getTeamColor(0));

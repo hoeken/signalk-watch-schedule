@@ -206,7 +206,6 @@ export function resolveSchedule(system, teams, startedAt, now, opts = {}) {
       teamIndex: seg.teamIndex,
       teamId: `team${seg.teamIndex + 1}`,
       teamName: team?.name ?? `Team ${seg.teamIndex + 1}`,
-      crew: team?.crew ?? [],
       startTime,
       endTime,
       durationMin: seg.duration,

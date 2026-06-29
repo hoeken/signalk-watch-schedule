@@ -47,7 +47,7 @@ const META = {
   "watch.state.startedAt": "Epoch ms the current watch began (snapped to a whole hour)",
   "watch.state.systemId": "Id of the active watch rotation system",
   "watch.system": "Full definition of the active watch system",
-  "watch.teams": "Configured watch teams and their crew",
+  "watch.teams": "Configured watch teams, in rotation order",
   "watch.current": "The shift currently on duty",
   "watch.next": "The next shift coming on duty",
   "watch.schedule": "Ordered list of upcoming shifts, starting with the current one",

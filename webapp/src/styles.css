@@ -264,14 +264,6 @@ textarea {
   color: var(--muted);
 }
 
-.shift__crew {
-  color: var(--muted);
-  font-size: 0.9rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .shift__meta {
   text-align: right;
   white-space: nowrap;
@@ -439,14 +431,6 @@ input {
 
 .team-order__name {
   font-weight: 700;
-}
-
-.team-order__crew {
-  color: var(--muted);
-  font-size: 0.8rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .team-order__moves {

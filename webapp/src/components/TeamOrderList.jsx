@@ -38,7 +38,6 @@ export default function TeamOrderList({ teams, order, onReorder, disabled }) {
       {order.map((teamIndex, pos) => {
         const team = teams[teamIndex];
         const color = getTeamColor(pos);
-        const crew = team?.crew?.length ? team.crew.join(", ") : "No crew assigned";
         const dragging = dragFrom === pos;
         const over = dragOver === pos && dragFrom != null && dragFrom !== pos;
         return (
@@ -63,7 +62,6 @@ export default function TeamOrderList({ teams, order, onReorder, disabled }) {
               <span className="team-order__name" style={{ color }}>
                 {team?.name ?? `Team ${teamIndex + 1}`}
               </span>
-              <span className="team-order__crew">{crew}</span>
             </span>
             <span className="team-order__moves">
               <button

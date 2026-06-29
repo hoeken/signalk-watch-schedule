@@ -29,9 +29,6 @@ export default function ShiftCard({ shift, now, withDay }) {
           {shift.teamName}
           {shift.label ? <span className="shift__label"> · {shift.label}</span> : null}
         </div>
-        <div className="shift__crew">
-          {shift.crew.length ? shift.crew.join(", ") : "No crew assigned"}
-        </div>
       </div>
 
       <div className="shift__meta">

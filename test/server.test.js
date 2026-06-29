@@ -8,8 +8,8 @@ import { buildWatchData } from "../src/server/publisher.js";
 import createPlugin from "../index.js";
 
 const TEAMS = [
-  { name: "Port", crew: ["Alice"] },
-  { name: "Starboard", crew: ["Bob"] },
+  { name: "Port" },
+  { name: "Starboard" },
 ];
 const OPTIONS = { teams: TEAMS, defaultSystemId: "fixed-4-4", publishHorizon: 6, snapMode: "nearest" };
 

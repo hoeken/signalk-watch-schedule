@@ -3,7 +3,7 @@
  *
  * Only the small, authoritative runtime flags live here — whether the boat is
  * on watch, when the watch began (snapped to the hour), which system is active,
- * and the chosen team order for this watch. Team/crew/rotation definitions live
+ * and the chosen team order for this watch. Team/rotation definitions live
  * in plugin config, not here.
  *
  * `teamOrder` is a permutation of the configured teams' indices (or null for the

@@ -1,7 +1,7 @@
 # signalk-watch-schedule
 
 A [SignalK](https://signalk.org) plugin + webapp for running a crew **watch schedule**
-on offshore or overnight passages. The captain defines watch teams, assigns crew, and picks a
+on offshore or overnight passages. The captain defines watch teams and picks a
 rotation; the plugin tracks whether the boat is on watch, when it started, and shows a clean,
 color-coded, responsive schedule on any device.
 
@@ -9,7 +9,7 @@ color-coded, responsive schedule on any device.
 
 ## Features
 
-- **Watch teams + crew** configured in the plugin settings.
+- **Watch teams** configured in the plugin settings — name each for the watch or the crew standing it.
 - **Built-in rotation systems**: 4-on/4-off, 3-on/3-off, 6-on/6-off, and Royal Navy dog watches.
 - **Whole-hour starts** — the schedule always begins on a clean clock hour, with a start-time
   picker covering ±12 hours so you can log a watch that began earlier or schedule one ahead.
@@ -50,7 +50,7 @@ Then enable the plugin in **Server → Plugin Config** and open it from **Webapp
 
 | Setting | Description |
 |---|---|
-| **Watch Teams** | One entry per watch; each has a name and a crew list. |
+| **Watch Teams** | One entry per watch, in rotation order. Name it for the watch (e.g. Port Watch) or the crew member(s) standing it. |
 | **Default Watch System** | Rotation pre-selected when starting a watch. |
 | **Start-time rounding** | How the start snaps to the hour: `nearest` / `up` / `down`. |
 | **Shifts to publish** | How many upcoming shifts to publish and show. |
@@ -66,7 +66,7 @@ three-team rotation appears once you have three teams).
 | `watch.state.startedAt` | Epoch ms the watch began (whole hour). |
 | `watch.state.systemId` | Active rotation id. |
 | `watch.system` | Full active system definition. |
-| `watch.teams` | Teams and crew. |
+| `watch.teams` | Configured watch teams, in rotation order. |
 | `watch.current` / `watch.next` | Active and upcoming shift. |
 | `watch.schedule` | Ordered upcoming shifts, current first. |
 
