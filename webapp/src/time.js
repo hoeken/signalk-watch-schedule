@@ -1,6 +1,6 @@
 /** Small formatting helpers for the UI. */
 
-import { snapToHour } from '@core/index.js';
+import { snapToHour } from "@core/index.js";
 
 // We format dates from the legacy Date getters (getHours/getDay/…) rather than
 // toLocale*()/Intl. Both honor the same local timezone on a healthy browser, but
@@ -8,10 +8,10 @@ import { snapToHour } from '@core/index.js';
 // offset, which the legacy getters pick up correctly, while ICU/Intl has no real
 // IANA zone and falls back to Europe/London — so toLocale*() renders the wrong
 // time. Going through the getters keeps us on the offset that's actually right.
-const WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const WEEKDAYS_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-const pad2 = (n) => String(n).padStart(2, '0');
+const pad2 = (n) => String(n).padStart(2, "0");
 
 /** "14:00" in the viewer's local timezone (the boat's clock). */
 export function formatClock(epochMs) {
@@ -29,8 +29,8 @@ export function formatHourOption(epochMs, nowMs) {
   const d = new Date(epochMs);
   const sameDay = d.toDateString() === new Date(nowMs).toDateString();
   const time = sameDay ? formatClock(epochMs) : `${WEEKDAYS_SHORT[d.getDay()]} ${formatClock(epochMs)}`;
-  const diffH = Math.round((epochMs - snapToHour(nowMs, 'nearest')) / 3_600_000);
-  const rel = diffH === 0 ? 'now' : diffH > 0 ? `+${diffH}h` : `−${-diffH}h`;
+  const diffH = Math.round((epochMs - snapToHour(nowMs, "nearest")) / 3_600_000);
+  const rel = diffH === 0 ? "now" : diffH > 0 ? `+${diffH}h` : `−${-diffH}h`;
   return `${time} (${rel})`;
 }
 
@@ -44,28 +44,32 @@ export function formatClockDay(epochMs) {
 export function formatDuration(minutes) {
   const h = Math.floor(minutes / 60);
   const m = Math.round(minutes % 60);
-  if (h && m) return `${h}h ${m}m`;
-  if (h) return `${h}h`;
+  if (h && m)
+    return `${h}h ${m}m`;
+  if (h)
+    return `${h}h`;
   return `${m}m`;
 }
 
 /** Gap until a future target, as "2h 15m". Empty if the target is now or past. */
 export function untilLabel(targetMs, nowMs) {
   const diff = targetMs - nowMs;
-  if (diff <= 0) return '';
+  if (diff <= 0)
+    return "";
   return formatDuration(diff / 60000);
 }
 
 /** Time elapsed since a past target, as "2h 15m". Empty if the target is now or future. */
 export function agoLabel(targetMs, nowMs) {
   const diff = nowMs - targetMs;
-  if (diff <= 0) return '';
+  if (diff <= 0)
+    return "";
   return formatDuration(diff / 60000);
 }
 
 /** Hex (#rrggbb) → rgba() string with the given alpha. */
 export function hexToRgba(hex, alpha) {
-  const h = hex.replace('#', '');
+  const h = hex.replace("#", "");
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
   const b = parseInt(h.slice(4, 6), 16);

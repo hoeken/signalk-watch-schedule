@@ -12,8 +12,8 @@
  * @typedef {{ onWatch: boolean, startedAt: number|null, systemId: string|null, teamOrder: number[]|null }} WatchState
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
+import fs from "node:fs";
+import path from "node:path";
 
 /** @type {WatchState} */
 const DEFAULT_STATE = { onWatch: false, startedAt: null, systemId: null, teamOrder: null };
@@ -22,12 +22,12 @@ const DEFAULT_STATE = { onWatch: false, startedAt: null, systemId: null, teamOrd
  * @param {object} app SignalK app object (provides getDataDirPath + logging).
  */
 export function createStateStore(app) {
-  const file = path.join(app.getDataDirPath(), 'state.json');
+  const file = path.join(app.getDataDirPath(), "state.json");
 
   /** @returns {WatchState} */
   function load() {
     try {
-      const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
       return { ...DEFAULT_STATE, ...parsed };
     } catch {
       return { ...DEFAULT_STATE };
@@ -40,7 +40,8 @@ export function createStateStore(app) {
     try {
       fs.writeFileSync(file, JSON.stringify(state, null, 2));
     } catch (err) {
-      if (typeof app.error === 'function') app.error(`watch-schedule: failed to persist state: ${err.message}`);
+      if (typeof app.error === "function")
+        app.error(`watch-schedule: failed to persist state: ${err.message}`);
     }
   }
 

@@ -11,7 +11,7 @@
  * @typedef {import('./types.js').ResolvedShift} ResolvedShift
  */
 
-import { getTeamColor } from './colors.js';
+import { getTeamColor } from "./colors.js";
 
 const MS_PER_MIN = 60_000;
 const MS_PER_HOUR = 3_600_000;
@@ -24,15 +24,18 @@ const MS_PER_HOUR = 3_600_000;
  * @param {'nearest'|'up'|'down'} [mode='nearest']
  * @returns {number} epoch ms at a whole local hour
  */
-export function snapToHour(epochMs, mode = 'nearest') {
+export function snapToHour(epochMs, mode = "nearest") {
   const d = new Date(epochMs);
   const subHourMin = d.getMinutes() + d.getSeconds() / 60 + d.getMilliseconds() / 60000;
   d.setMinutes(0, 0, 0);
   const floor = d.getTime();
-  if (subHourMin === 0) return floor;
+  if (subHourMin === 0)
+    return floor;
   const ceil = floor + MS_PER_HOUR;
-  if (mode === 'down') return floor;
-  if (mode === 'up') return ceil;
+  if (mode === "down")
+    return floor;
+  if (mode === "up")
+    return ceil;
   return subHourMin >= 30 ? ceil : floor; // nearest
 }
 
@@ -45,10 +48,12 @@ export function snapToHour(epochMs, mode = 'nearest') {
  * @returns {boolean}
  */
 export function isTeamOrder(order, n) {
-  if (!Array.isArray(order) || order.length !== n) return false;
+  if (!Array.isArray(order) || order.length !== n)
+    return false;
   const seen = new Set();
   for (const i of order) {
-    if (!Number.isInteger(i) || i < 0 || i >= n || seen.has(i)) return false;
+    if (!Number.isInteger(i) || i < 0 || i >= n || seen.has(i))
+      return false;
     seen.add(i);
   }
   return true;
@@ -64,7 +69,8 @@ export function isTeamOrder(order, n) {
  * @returns {WatchTeam[]}
  */
 export function orderTeams(teams, order) {
-  if (!Array.isArray(teams) || !isTeamOrder(order, teams.length)) return teams;
+  if (!Array.isArray(teams) || !isTeamOrder(order, teams.length))
+    return teams;
   return order.map((i) => teams[i]);
 }
 
@@ -100,15 +106,19 @@ function cycleAnchor(system, startedAt) {
  */
 export function validateSystem(system) {
   const errors = [];
-  if (!system || typeof system !== 'object') {
-    return { valid: false, errors: ['system is not an object'] };
+  if (!system || typeof system !== "object") {
+    return { valid: false, errors: ["system is not an object"] };
   }
-  if (typeof system.id !== 'string' || !system.id) errors.push('missing id');
-  if (typeof system.teamCount !== 'number' || system.teamCount < 1) errors.push('teamCount must be >= 1');
-  if (typeof system.cycleDuration !== 'number' || system.cycleDuration <= 0) errors.push('cycleDuration must be > 0');
-  if (system.anchored !== undefined && typeof system.anchored !== 'boolean') errors.push('anchored must be a boolean');
+  if (typeof system.id !== "string" || !system.id)
+    errors.push("missing id");
+  if (typeof system.teamCount !== "number" || system.teamCount < 1)
+    errors.push("teamCount must be >= 1");
+  if (typeof system.cycleDuration !== "number" || system.cycleDuration <= 0)
+    errors.push("cycleDuration must be > 0");
+  if (system.anchored !== undefined && typeof system.anchored !== "boolean")
+    errors.push("anchored must be a boolean");
   if (!Array.isArray(system.segments) || system.segments.length === 0) {
-    errors.push('segments must be a non-empty array');
+    errors.push("segments must be a non-empty array");
     return { valid: false, errors };
   }
 
@@ -118,7 +128,7 @@ export function validateSystem(system) {
     if (seg.offset !== cursor) {
       errors.push(`segment at offset ${seg.offset} leaves a gap/overlap (expected ${cursor})`);
     }
-    if (typeof seg.duration !== 'number' || seg.duration <= 0) {
+    if (typeof seg.duration !== "number" || seg.duration <= 0) {
       errors.push(`segment at offset ${seg.offset} has non-positive duration`);
     }
     if (seg.teamIndex < 0 || seg.teamIndex >= system.teamCount) {
@@ -141,7 +151,8 @@ export function validateSystem(system) {
  *   null if not started or `now` is before `startedAt`.
  */
 export function getCurrentSegment(system, startedAt, now) {
-  if (!startedAt || now < startedAt) return null;
+  if (!startedAt || now < startedAt)
+    return null;
   const anchor = cycleAnchor(system, startedAt);
   const cycleMs = system.cycleDuration * MS_PER_MIN;
   const elapsed = now - anchor;
@@ -168,7 +179,8 @@ export function getCurrentSegment(system, startedAt, now) {
  */
 export function resolveSchedule(system, teams, startedAt, now, opts = {}) {
   const count = opts.count ?? 8;
-  if (!system || !Array.isArray(system.segments) || system.segments.length === 0) return [];
+  if (!system || !Array.isArray(system.segments) || system.segments.length === 0)
+    return [];
 
   const anchor = cycleAnchor(system, startedAt);
   const cycleMs = system.cycleDuration * MS_PER_MIN;
@@ -179,7 +191,8 @@ export function resolveSchedule(system, teams, startedAt, now, opts = {}) {
   let cycleIndex = Math.floor(elapsed / cycleMs);
   const posMin = (elapsed - cycleIndex * cycleMs) / MS_PER_MIN;
   let segIdx = segs.findIndex((s) => posMin >= s.offset && posMin < s.offset + s.duration);
-  if (segIdx === -1) segIdx = 0;
+  if (segIdx === -1)
+    segIdx = 0;
 
   const shifts = [];
   let ci = cycleIndex;

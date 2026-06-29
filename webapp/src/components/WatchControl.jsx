@@ -1,5 +1,5 @@
-import { formatClock, formatHourOption } from '../time.js';
-import TeamOrderList from './TeamOrderList.jsx';
+import { formatClock, formatHourOption } from "../time.js";
+import TeamOrderList from "./TeamOrderList.jsx";
 
 /**
  * Start/stop control for authenticated users. When idle, the captain picks the
@@ -30,15 +30,15 @@ export default function WatchControl({
     return (
       <div className="control">
         <div className="control__active">
-          Running <strong>{system?.name ?? 'watch'}</strong>
+          Running <strong>{system?.name ?? "watch"}</strong>
           {startedAt ? (
             <div className="muted">
-              {future ? 'Starts' : 'Started'} at {formatClock(startedAt)}
+              {future ? "Starts" : "Started"} at {formatClock(startedAt)}
             </div>
           ) : null}
         </div>
         <button className="btn btn--stop" onClick={onStop} disabled={busy}>
-          {busy ? 'Stopping…' : 'Stop Watch'}
+          {busy ? "Stopping…" : "Stop Watch"}
         </button>
       </div>
     );
@@ -51,7 +51,7 @@ export default function WatchControl({
       <label className="control__field">
         <span>Watch system</span>
         <select
-          value={selectedSystemId ?? ''}
+          value={selectedSystemId ?? ""}
           onChange={(e) => onSelect(e.target.value)}
           disabled={!canStart || busy}
         >
@@ -83,7 +83,7 @@ export default function WatchControl({
           <span>Watch order</span>
           <TeamOrderList teams={teams} order={teamOrder} onReorder={onReorder} disabled={busy} />
           <div className="muted">
-            {teams[teamOrder[0]]?.name ?? 'The first team'} starts at {formatClock(startAt)}; the rest follow in
+            {teams[teamOrder[0]]?.name ?? "The first team"} starts at {formatClock(startAt)}; the rest follow in
             order.
           </div>
         </div>
@@ -94,7 +94,7 @@ export default function WatchControl({
       )}
 
       <button className="btn btn--start" onClick={onStart} disabled={busy || !canStart}>
-        {busy ? 'Starting…' : 'Start Watch'}
+        {busy ? "Starting…" : "Start Watch"}
       </button>
     </div>
   );

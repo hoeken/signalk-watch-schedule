@@ -1,4 +1,4 @@
-import { formatClock, formatClockDay, formatDuration, untilLabel, agoLabel, hexToRgba } from '../time.js';
+import { formatClock, formatClockDay, formatDuration, untilLabel, agoLabel, hexToRgba } from "../time.js";
 
 /**
  * One shift in the schedule list. Each team has its own color; the active shift
@@ -19,7 +19,7 @@ export default function ShiftCard({ shift, now, withDay }) {
   };
 
   return (
-    <li className={`shift${isCurrent ? ' shift--current' : ''}`} style={style}>
+    <li className={`shift${isCurrent ? " shift--current" : ""}`} style={style}>
       <div className="shift__time">
         {fmt(shift.startTime)}
       </div>
@@ -30,7 +30,7 @@ export default function ShiftCard({ shift, now, withDay }) {
           {shift.label ? <span className="shift__label"> · {shift.label}</span> : null}
         </div>
         <div className="shift__crew">
-          {shift.crew.length ? shift.crew.join(', ') : 'No crew assigned'}
+          {shift.crew.length ? shift.crew.join(", ") : "No crew assigned"}
         </div>
       </div>
 
@@ -42,9 +42,9 @@ export default function ShiftCard({ shift, now, withDay }) {
             <span className="muted">ends in {untilLabel(shift.endTime, now)}</span>
           </div>
         ) : ended ? (
-          <div className="shift__status muted">{endedAgo ? `ended ${endedAgo} ago` : 'just ended'}</div>
+          <div className="shift__status muted">{endedAgo ? `ended ${endedAgo} ago` : "just ended"}</div>
         ) : (
-          <div className="shift__status muted">{startsIn ? `in ${startsIn}` : 'soon'}</div>
+          <div className="shift__status muted">{startsIn ? `in ${startsIn}` : "soon"}</div>
         )}
       </div>
     </li>

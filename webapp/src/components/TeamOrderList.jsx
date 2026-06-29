@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { getTeamColor } from '@core/index.js';
+import { useState } from "react";
+import { getTeamColor } from "@core/index.js";
 
 /** Move the item at `from` to `to`, returning a new array. */
 function move(arr, from, to) {
@@ -23,7 +23,8 @@ export default function TeamOrderList({ teams, order, onReorder, disabled }) {
   const [dragOver, setDragOver] = useState(null);
 
   const reorder = (from, to) => {
-    if (from == null || to < 0 || to >= order.length || from === to) return;
+    if (from == null || to < 0 || to >= order.length || from === to)
+      return;
     onReorder(move(order, from, to));
   };
 
@@ -37,13 +38,13 @@ export default function TeamOrderList({ teams, order, onReorder, disabled }) {
       {order.map((teamIndex, pos) => {
         const team = teams[teamIndex];
         const color = getTeamColor(pos);
-        const crew = team?.crew?.length ? team.crew.join(', ') : 'No crew assigned';
+        const crew = team?.crew?.length ? team.crew.join(", ") : "No crew assigned";
         const dragging = dragFrom === pos;
         const over = dragOver === pos && dragFrom != null && dragFrom !== pos;
         return (
           <li
             key={teamIndex}
-            className={`team-order__item${dragging ? ' is-dragging' : ''}${over ? ' is-over' : ''}`}
+            className={`team-order__item${dragging ? " is-dragging" : ""}${over ? " is-over" : ""}`}
             style={{ borderLeftColor: color }}
             draggable={!disabled}
             onDragStart={() => setDragFrom(pos)}
@@ -68,7 +69,7 @@ export default function TeamOrderList({ teams, order, onReorder, disabled }) {
               <button
                 type="button"
                 className="team-order__btn"
-                aria-label={`Move ${team?.name ?? 'team'} earlier`}
+                aria-label={`Move ${team?.name ?? "team"} earlier`}
                 onClick={() => reorder(pos, pos - 1)}
                 disabled={disabled || pos === 0}
               >
@@ -77,7 +78,7 @@ export default function TeamOrderList({ teams, order, onReorder, disabled }) {
               <button
                 type="button"
                 className="team-order__btn"
-                aria-label={`Move ${team?.name ?? 'team'} later`}
+                aria-label={`Move ${team?.name ?? "team"} later`}
                 onClick={() => reorder(pos, pos + 1)}
                 disabled={disabled || pos === order.length - 1}
               >

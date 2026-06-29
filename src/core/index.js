@@ -4,7 +4,7 @@
  * webapp.
  */
 
-export { PALETTE, getTeamColor } from './colors.js';
+export { PALETTE, getTeamColor } from "./colors.js";
 export {
   snapToHour,
   snapToDay,
@@ -13,5 +13,5 @@ export {
   resolveSchedule,
   isTeamOrder,
   orderTeams,
-} from './schedule.js';
-export { BUILTIN_SYSTEMS, getSystemById, availableSystems } from './systems.js';
+} from "./schedule.js";
+export { BUILTIN_SYSTEMS, getSystemById, availableSystems } from "./systems.js";

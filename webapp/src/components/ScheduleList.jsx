@@ -1,4 +1,4 @@
-import ShiftCard from './ShiftCard.jsx';
+import ShiftCard from "./ShiftCard.jsx";
 
 /** Ordered list of shifts, starting with the active one. */
 export default function ScheduleList({ shifts, now, preview }) {

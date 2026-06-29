@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState } from "react";
 
 /** Inline SignalK login shown to anonymous viewers so they can take control. */
 export default function LoginPanel({ onLogin }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -38,7 +38,7 @@ export default function LoginPanel({ onLogin }) {
       />
       {error ? <div className="warn">{error}</div> : null}
       <button className="btn btn--start" disabled={busy}>
-        {busy ? 'Logging in…' : 'Log in'}
+        {busy ? "Logging in…" : "Log in"}
       </button>
       <div className="muted">You can view the schedule without logging in.</div>
     </form>

@@ -11,13 +11,13 @@
  *   POST /api/watch/stop    stop the watch                           (write)
  */
 
-import { availableSystems, getSystemById, snapToHour, isTeamOrder } from '../core/index.js';
-import { buildWatchData } from './publisher.js';
+import { availableSystems, getSystemById, snapToHour, isTeamOrder } from "../core/index.js";
+import { buildWatchData } from "./publisher.js";
 
 /** Is SignalK security turned on for this server? */
 function securityEnabled(app) {
   try {
-    if (app.securityStrategy && typeof app.securityStrategy.isEnabled === 'function') {
+    if (app.securityStrategy && typeof app.securityStrategy.isEnabled === "function") {
       return app.securityStrategy.isEnabled();
     }
   } catch {
@@ -31,7 +31,8 @@ function securityEnabled(app) {
  * an authenticated principal.
  */
 function canWrite(app, req) {
-  if (!securityEnabled(app)) return true;
+  if (!securityEnabled(app))
+    return true;
   return !!req.skPrincipal;
 }
 
@@ -42,15 +43,16 @@ function canWrite(app, req) {
 export function registerRoutes(router, ctx) {
   const { app, getOptions, getStore, publishNow } = ctx;
 
-  const notReady = (res) => res.status(503).json({ error: 'plugin not started' });
+  const notReady = (res) => res.status(503).json({ error: "plugin not started" });
 
-  router.get('/api/state', (req, res) => {
+  router.get("/api/state", (req, res) => {
     const store = getStore();
-    if (!store) return notReady(res);
+    if (!store)
+      return notReady(res);
     res.json(buildWatchData(store.get(), getOptions(), Date.now()));
   });
 
-  router.get('/api/config', (req, res) => {
+  router.get("/api/config", (req, res) => {
     const options = getOptions() || {};
     res.json({
       teams: options.teams ?? [],
@@ -59,16 +61,18 @@ export function registerRoutes(router, ctx) {
     });
   });
 
-  router.get('/api/systems', (req, res) => {
+  router.get("/api/systems", (req, res) => {
     const options = getOptions() || {};
     const teams = options.teams ?? [];
     res.json(availableSystems(teams.length));
   });
 
-  router.post('/api/watch/start', (req, res) => {
+  router.post("/api/watch/start", (req, res) => {
     const store = getStore();
-    if (!store) return notReady(res);
-    if (!canWrite(app, req)) return res.status(401).json({ error: 'login required' });
+    if (!store)
+      return notReady(res);
+    if (!canWrite(app, req))
+      return res.status(401).json({ error: "login required" });
 
     const options = getOptions() || {};
     const teams = options.teams ?? [];
@@ -83,7 +87,7 @@ export function registerRoutes(router, ctx) {
     // back to now. Always snapped to a whole hour so segments land cleanly.
     const requestedStartAt = req.body && req.body.startAt;
     const baseTime = Number.isFinite(requestedStartAt) ? requestedStartAt : Date.now();
-    const startedAt = snapToHour(baseTime, options.snapMode || 'nearest');
+    const startedAt = snapToHour(baseTime, options.snapMode || "nearest");
 
     // Honor a requested team order (which team is first on watch); ignore
     // anything that isn't a valid permutation of the configured teams.
@@ -95,10 +99,12 @@ export function registerRoutes(router, ctx) {
     res.json(buildWatchData(newState, options, Date.now()));
   });
 
-  router.post('/api/watch/stop', (req, res) => {
+  router.post("/api/watch/stop", (req, res) => {
     const store = getStore();
-    if (!store) return notReady(res);
-    if (!canWrite(app, req)) return res.status(401).json({ error: 'login required' });
+    if (!store)
+      return notReady(res);
+    if (!canWrite(app, req))
+      return res.status(401).json({ error: "login required" });
 
     const newState = store.set({ onWatch: false, startedAt: null, teamOrder: null });
     publishNow();

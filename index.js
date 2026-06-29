@@ -6,18 +6,18 @@
  * start/stop the watch.
  */
 
-import { BUILTIN_SYSTEMS } from './src/core/index.js';
-import { createStateStore } from './src/server/state.js';
-import { buildWatchData, publish, publishMeta } from './src/server/publisher.js';
-import { registerRoutes } from './src/server/api.js';
+import { BUILTIN_SYSTEMS } from "./src/core/index.js";
+import { createStateStore } from "./src/server/state.js";
+import { buildWatchData, publish, publishMeta } from "./src/server/publisher.js";
+import { registerRoutes } from "./src/server/api.js";
 
 const PUBLISH_INTERVAL_MS = 30_000;
 
 export default function (app) {
   const plugin = {
-    id: 'signalk-watch-schedule',
-    name: 'Watch Schedule',
-    description: 'Crew watch schedule for offshore and overnight sailing.',
+    id: "signalk-watch-schedule",
+    name: "Watch Schedule",
+    description: "Crew watch schedule for offshore and overnight sailing.",
   };
 
   let options = {};
@@ -25,53 +25,54 @@ export default function (app) {
   let timer = null;
 
   const publishNow = () => {
-    if (!store) return;
+    if (!store)
+      return;
     publish(app, plugin.id, buildWatchData(store.get(), options, Date.now()));
   };
 
   plugin.schema = () => ({
-    type: 'object',
+    type: "object",
     properties: {
       teams: {
-        type: 'array',
-        title: 'Watch Teams',
-        description: 'Each team is a group of crew that stands watch together. Add a team per watch.',
+        type: "array",
+        title: "Watch Teams",
+        description: "Each team is a group of crew that stands watch together. Add a team per watch.",
         default: [
-          { name: 'Watch 1', crew: [] },
-          { name: 'Watch 2', crew: [] },
+          { name: "Watch 1", crew: [] },
+          { name: "Watch 2", crew: [] },
         ],
         items: {
-          type: 'object',
-          required: ['name'],
+          type: "object",
+          required: ["name"],
           properties: {
-            name: { type: 'string', title: 'Name', description: 'e.g. Port Watch' },
+            name: { type: "string", title: "Name", description: "e.g. Port Watch" },
             crew: {
-              type: 'array',
-              title: 'Crew',
-              items: { type: 'string' },
+              type: "array",
+              title: "Crew",
+              items: { type: "string" },
             },
           },
         },
       },
       defaultSystemId: {
-        type: 'string',
-        title: 'Default Watch System',
-        description: 'Pre-selected rotation when starting a watch.',
+        type: "string",
+        title: "Default Watch System",
+        description: "Pre-selected rotation when starting a watch.",
         enum: BUILTIN_SYSTEMS.map((s) => s.id),
         enumNames: BUILTIN_SYSTEMS.map((s) => `${s.name} — ${s.description}`),
-        default: 'fixed-4-4',
+        default: "fixed-4-4",
       },
       snapMode: {
-        type: 'string',
-        title: 'Start-time rounding',
-        description: 'How the watch start is snapped to a whole hour.',
-        enum: ['nearest', 'up', 'down'],
-        default: 'nearest',
+        type: "string",
+        title: "Start-time rounding",
+        description: "How the watch start is snapped to a whole hour.",
+        enum: ["nearest", "up", "down"],
+        default: "nearest",
       },
       publishHorizon: {
-        type: 'number',
-        title: 'Shifts to publish',
-        description: 'How many upcoming shifts to publish and show in the UI.',
+        type: "number",
+        title: "Shifts to publish",
+        description: "How many upcoming shifts to publish and show in the UI.",
         default: 8,
         minimum: 1,
       },
@@ -85,11 +86,12 @@ export default function (app) {
     publishNow();
     timer = setInterval(publishNow, PUBLISH_INTERVAL_MS);
     const s = store.get();
-    app.setPluginStatus(s.onWatch ? `On watch (${s.systemId})` : 'Idle — no watch in progress');
+    app.setPluginStatus(s.onWatch ? `On watch (${s.systemId})` : "Idle — no watch in progress");
   };
 
   plugin.stop = () => {
-    if (timer) clearInterval(timer);
+    if (timer)
+      clearInterval(timer);
     timer = null;
     store = null;
   };

@@ -84,13 +84,13 @@ const WATCH_HOURS = [4, 3, 2];
  * 08:00, Afternoon 12:00, First Dog 16:00, Last Dog 18:00, First 20:00.
  */
 const RN_DAY = [
-  { duration: 4 * H, label: 'Middle' },
-  { duration: 4 * H, label: 'Morning' },
-  { duration: 4 * H, label: 'Forenoon' },
-  { duration: 4 * H, label: 'Afternoon' },
-  { duration: 2 * H, label: 'First Dog' },
-  { duration: 2 * H, label: 'Last Dog' },
-  { duration: 4 * H, label: 'First' },
+  { duration: 4 * H, label: "Middle" },
+  { duration: 4 * H, label: "Morning" },
+  { duration: 4 * H, label: "Forenoon" },
+  { duration: 4 * H, label: "Afternoon" },
+  { duration: 2 * H, label: "First Dog" },
+  { duration: 2 * H, label: "Last Dog" },
+  { duration: 4 * H, label: "First" },
 ];
 
 /** @type {WatchSystem[]} */
@@ -100,9 +100,9 @@ export const BUILTIN_SYSTEMS = [
   // Simple rotations for 2–5 teams at 4h / 3h / 2h watch lengths.
   ...TEAM_COUNTS.flatMap((teamCount) => WATCH_HOURS.map((hours) => fixedRotation(teamCount, hours))),
   {
-    id: 'rn-dog-watches',
-    name: 'Royal Navy (Dog Watches)',
-    description: 'Classic four-hour watches with two short evening dog watches so the rotation shifts daily between two teams. Anchored to the clock (Middle starts at midnight).',
+    id: "rn-dog-watches",
+    name: "Royal Navy (Dog Watches)",
+    description: "Classic four-hour watches with two short evening dog watches so the rotation shifts daily between two teams. Anchored to the clock (Middle starts at midnight).",
     teamCount: 2,
     cycleDuration: 2 * 24 * H,
     anchored: true,

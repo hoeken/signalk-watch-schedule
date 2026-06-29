@@ -8,14 +8,14 @@
 
 /** @type {string[]} */
 export const PALETTE = [
-  '#2563eb', // blue
-  '#dc2626', // red
-  '#16a34a', // green
-  '#d97706', // amber
-  '#7c3aed', // violet
-  '#0891b2', // cyan
-  '#db2777', // pink
-  '#65a30d', // lime
+  "#2563eb", // blue
+  "#dc2626", // red
+  "#16a34a", // green
+  "#d97706", // amber
+  "#7c3aed", // violet
+  "#0891b2", // cyan
+  "#db2777", // pink
+  "#65a30d", // lime
 ];
 
 /**

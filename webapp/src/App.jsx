@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
-import { resolveSchedule, snapToHour } from '@core/index.js';
-import * as api from './api.js';
-import ScheduleList from './components/ScheduleList.jsx';
-import WatchControl from './components/WatchControl.jsx';
-import LoginPanel from './components/LoginPanel.jsx';
+import { useCallback, useEffect, useState } from "react";
+import { resolveSchedule, snapToHour } from "@core/index.js";
+import * as api from "./api.js";
+import ScheduleList from "./components/ScheduleList.jsx";
+import WatchControl from "./components/WatchControl.jsx";
+import LoginPanel from "./components/LoginPanel.jsx";
 
 const SHIFT_COUNT = 12;
 const HOUR_MS = 3_600_000;
@@ -37,7 +37,8 @@ export default function App() {
 
     let pending = null;
     const onDelta = () => {
-      if (pending) return;
+      if (pending)
+        return;
       pending = setTimeout(() => {
         pending = null;
         api.getState().then(setView).catch(() => {});
@@ -49,15 +50,18 @@ export default function App() {
     return () => {
       unsub();
       clearInterval(ticker);
-      if (pending) clearTimeout(pending);
+      if (pending)
+        clearTimeout(pending);
     };
   }, [refresh]);
 
   // Default the picker to the active system (or first available) once loaded.
   useEffect(() => {
-    if (selectedSystemId) return;
+    if (selectedSystemId)
+      return;
     const fallback = view?.state?.systemId || systems[0]?.id || null;
-    if (fallback) setSelectedSystemId(fallback);
+    if (fallback)
+      setSelectedSystemId(fallback);
   }, [view, systems, selectedSystemId]);
 
   if (loading) {
@@ -81,11 +85,12 @@ export default function App() {
   const order = teamOrder && teamOrder.length === teams.length ? teamOrder : naturalOrder;
   const orderedTeams = order.map((i) => teams[i]);
 
-  const startHour = startAt ?? snapToHour(now, 'nearest');
-  const floorHour = snapToHour(now, 'down');
+  const startHour = startAt ?? snapToHour(now, "nearest");
+  const floorHour = snapToHour(now, "down");
   const startOptions = (() => {
     const hours = new Set();
-    for (let k = -START_WINDOW_HOURS; k <= START_WINDOW_HOURS; k += 1) hours.add(floorHour + k * HOUR_MS);
+    for (let k = -START_WINDOW_HOURS; k <= START_WINDOW_HOURS; k += 1)
+      hours.add(floorHour + k * HOUR_MS);
     hours.add(startHour); // keep the current selection valid even as `now` drifts
     return [...hours].sort((a, b) => a - b);
   })();
@@ -119,8 +124,8 @@ export default function App() {
       setView(await fn());
     } catch (e) {
       if (e.code === 401) {
-        setLoginStatus({ status: 'notLoggedIn', authenticationRequired: true });
-        setError('Your session expired — please log in again.');
+        setLoginStatus({ status: "notLoggedIn", authenticationRequired: true });
+        setError("Your session expired — please log in again.");
       } else {
         setError(e.message);
       }
@@ -141,19 +146,19 @@ export default function App() {
     await refresh();
   };
 
-  const loggedIn = loginStatus?.status === 'loggedIn';
+  const loggedIn = loginStatus?.status === "loggedIn";
 
   return (
     <div className="app">
       <header className="topbar">
         <div className="topbar__title">
-          <span className={`status-dot ${onWatch ? 'on' : 'off'}`} />
+          <span className={`status-dot ${onWatch ? "on" : "off"}`} />
           Watch Schedule
         </div>
         <div className="topbar__right">
           {loggedIn ? (
             <button className="link" onClick={doLogout}>
-              {loginStatus.username ? `Log out · ${loginStatus.username}` : 'Log out'}
+              {loginStatus.username ? `Log out · ${loginStatus.username}` : "Log out"}
             </button>
           ) : null}
         </div>
@@ -163,7 +168,7 @@ export default function App() {
 
       <main className="layout">
         <section className="panel schedule-panel">
-          <h2>{onWatch ? 'On Watch' : 'Schedule'}</h2>
+          <h2>{onWatch ? "On Watch" : "Schedule"}</h2>
           <ScheduleList shifts={shifts} now={now} preview={preview} />
         </section>
 
