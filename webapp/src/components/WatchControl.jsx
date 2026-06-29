@@ -1,4 +1,4 @@
-import { formatClock, formatHourOption } from "../time.js";
+import { formatClock, formatDateTime, formatHourOption } from "../time.js";
 import TeamOrderList from "./TeamOrderList.jsx";
 
 /**
@@ -33,7 +33,7 @@ export default function WatchControl({
           Running <strong>{system?.name ?? "watch"}</strong>
           {startedAt ? (
             <div className="muted">
-              {future ? "Starts" : "Started"} at {formatClock(startedAt)}
+              {future ? "Starts" : "Started"} on {formatDateTime(startedAt)}
             </div>
           ) : null}
         </div>

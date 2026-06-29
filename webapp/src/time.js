@@ -10,6 +10,7 @@ import { snapToHour } from "@core/index.js";
 // time. Going through the getters keeps us on the offset that's actually right.
 const WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAYS_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const pad2 = (n) => String(n).padStart(2, "0");
 
@@ -32,6 +33,12 @@ export function formatHourOption(epochMs, nowMs) {
   const diffH = Math.round((epochMs - snapToHour(nowMs, "nearest")) / 3_600_000);
   const rel = diffH === 0 ? "now" : diffH > 0 ? `+${diffH}h` : `−${-diffH}h`;
   return `${time} (${rel})`;
+}
+
+/** "Mon, Jun 29, 14:00" — full date and clock, for a watch that may span multiple days. */
+export function formatDateTime(epochMs) {
+  const d = new Date(epochMs);
+  return `${WEEKDAYS_SHORT[d.getDay()]}, ${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}, ${formatClock(epochMs)}`;
 }
 
 /** "Monday\n14:00" — weekday on its own line above the clock, for shifts crossing day boundaries. */
