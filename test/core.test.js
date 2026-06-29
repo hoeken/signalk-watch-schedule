@@ -110,6 +110,34 @@ test("resolveSchedule before start shows upcoming shifts with none current", () 
   assert.equal(shifts.some((s) => s.isCurrent), false);
 });
 
+test("a future-start anchored watch begins at the start, omitting earlier segments", () => {
+  const sys = getSystemById("rn-dog-watches"); // anchored to midnight
+  // Start mid-morning at the Forenoon watch (08:00–12:00). `now` is 03:00 — the
+  // Middle watch (00:00–04:00) is on the clock, but it precedes the start so it
+  // must NOT appear: the schedule begins at the start time, not at `now`.
+  const start = new Date(2026, 0, 1, 8, 0, 0).getTime();
+  const now = start - 5 * HOUR; // 03:00, before the watch begins
+  const shifts = resolveSchedule(sys, TEAMS, start, now, { count: 4 });
+
+  assert.equal(shifts[0].startTime, start, "first shift is the start-time watch");
+  assert.equal(shifts[0].label, "Forenoon");
+  assert.equal(shifts[0].teamIndex, 0, "start-time watch is re-based to team 0");
+  assert.equal(shifts.some((s) => s.isCurrent), false, "nothing is current before the start");
+  assert.ok(shifts.every((s) => s.startTime >= start), "no watches before the start time");
+});
+
+test("nothing is current between an anchored shift's clock boundary and a later start", () => {
+  const sys = getSystemById("rn-dog-watches"); // anchored to midnight
+  // Start at 09:00 — inside the Forenoon watch (08:00–12:00). At 08:30 the
+  // clock boundary has passed but the watch hasn't begun, so no shift is on duty.
+  const start = new Date(2026, 0, 1, 9, 0, 0).getTime();
+  const now = new Date(2026, 0, 1, 8, 30, 0).getTime();
+  const [first] = resolveSchedule(sys, TEAMS, start, now, { count: 1 });
+  assert.equal(first.label, "Forenoon");
+  assert.equal(first.startTime, new Date(2026, 0, 1, 8, 0, 0).getTime());
+  assert.equal(first.isCurrent, false, "pre-start sliver is not current");
+});
+
 test("snapToDay floors to local midnight", () => {
   const at1530 = new Date(2026, 0, 1, 15, 30, 0).getTime();
   const midnight = new Date(2026, 0, 1, 0, 0, 0).getTime();

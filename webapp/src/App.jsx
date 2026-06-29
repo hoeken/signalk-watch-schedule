@@ -77,6 +77,11 @@ export default function App() {
   const state = view?.state ?? { onWatch: false, startedAt: null, systemId: null };
   const teams = view?.teams ?? [];
   const onWatch = state.onWatch;
+  // A watch can be scheduled to begin in the future: it's "on watch" but hasn't
+  // started yet. Flagged separately so the UI reads as pending/grey rather than
+  // active (server-side, watch.current is null and the schedule omits earlier
+  // segments — see resolveSchedule).
+  const notStarted = onWatch && !!state.startedAt && state.startedAt > now;
   const controllable = api.canControl(loginStatus);
 
   // Off watch, the captain chooses the start hour and team order; both feed the
@@ -156,7 +161,7 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="topbar__title">
-          <span className={`status-dot ${onWatch ? "on" : "off"}`} />
+          <span className={`status-dot ${notStarted ? "pending" : onWatch ? "on" : "off"}`} />
           Watch Schedule
           <ThemeToggle />
         </div>
@@ -177,8 +182,13 @@ export default function App() {
 
       <main className={`layout${controllable ? "" : " layout--solo"}`}>
         <section className="panel schedule-panel">
-          <h2>{onWatch ? "On Watch" : "Schedule"}</h2>
-          <ScheduleList shifts={shifts} now={now} preview={preview} />
+          <h2>{!onWatch ? "Schedule" : notStarted ? "Scheduled" : "On Watch"}</h2>
+          <ScheduleList
+            shifts={shifts}
+            now={now}
+            preview={preview}
+            startsAt={notStarted ? state.startedAt : null}
+          />
         </section>
 
         {controllable ? (

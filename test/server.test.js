@@ -29,6 +29,18 @@ test("buildWatchData resolves current/next/schedule when on watch", () => {
   assert.equal(data.system.id, "fixed-4-4");
 });
 
+test("buildWatchData omits pre-start watches and leaves current null for a future start", () => {
+  // Anchored system + a start later today: the segments before the start must
+  // not leak into the published schedule, and nothing is on duty yet.
+  const startedAt = new Date(2026, 0, 1, 8, 0, 0).getTime();
+  const now = startedAt - 5 * 60 * 60_000; // 03:00, before the watch begins
+  const data = buildWatchData({ onWatch: true, startedAt, systemId: "rn-dog-watches" }, OPTIONS, now);
+  assert.equal(data.current, null, "nothing is on duty before the start");
+  assert.equal(data.next.startTime, startedAt, "next is the first scheduled shift");
+  assert.equal(data.schedule[0].startTime, startedAt, "schedule begins at the start time");
+  assert.ok(data.schedule.every((s) => s.startTime >= startedAt), "no watches before the start");
+});
+
 test("buildWatchData applies teamOrder to the schedule and published teams", () => {
   const startedAt = new Date(2026, 0, 1, 0, 0, 0).getTime();
   const now = startedAt + 30 * 60_000;

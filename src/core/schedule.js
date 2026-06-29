@@ -224,8 +224,13 @@ export function resolveSchedule(system, teams, startedAt, now, opts = {}) {
   const shift = teamShift(system, startedAt);
   const teamCount = system.teamCount;
 
-  // Locate the starting segment: the one containing `now`, else the first.
-  const elapsed = Math.max(0, now - anchor);
+  // Locate the starting segment, never earlier than `startedAt`: a watch
+  // scheduled to begin in the future shows its first shift, not the segments
+  // that precede it. (Anchored systems read offsets from midnight, so without
+  // this clamp `now` would point at a pre-start segment; for a live or
+  // back-dated start `now` is already ≥ startedAt, so this is a no-op.)
+  const locateAt = Math.max(now, startedAt);
+  const elapsed = Math.max(0, locateAt - anchor);
   let cycleIndex = Math.floor(elapsed / cycleMs);
   const posMin = (elapsed - cycleIndex * cycleMs) / MS_PER_MIN;
   let segIdx = segs.findIndex((s) => posMin >= s.offset && posMin < s.offset + s.duration);
@@ -250,7 +255,11 @@ export function resolveSchedule(system, teams, startedAt, now, opts = {}) {
       durationMin: seg.duration,
       color: getTeamColor(teamIndex),
       label: seg.label,
-      isCurrent: now >= startTime && now < endTime,
+      // Nothing is on duty until the watch has actually begun. For anchored
+      // systems the first shift can open on a clock boundary that precedes
+      // `startedAt`, so gate on `startedAt` too — otherwise that pre-start
+      // sliver would read as current (and the server would publish it).
+      isCurrent: now >= startedAt && now >= startTime && now < endTime,
       cycleIndex: ci,
     });
     si += 1;
