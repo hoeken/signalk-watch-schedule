@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   snapToHour,
+  snapToDay,
   validateSystem,
   getCurrentSegment,
   resolveSchedule,
@@ -108,6 +109,42 @@ test('resolveSchedule before start shows upcoming shifts with none current', () 
   assert.equal(shifts.some((s) => s.isCurrent), false);
 });
 
+test('snapToDay floors to local midnight', () => {
+  const at1530 = new Date(2026, 0, 1, 15, 30, 0).getTime();
+  const midnight = new Date(2026, 0, 1, 0, 0, 0).getTime();
+  assert.equal(snapToDay(at1530), midnight);
+  assert.equal(snapToDay(midnight), midnight, 'already at midnight stays put');
+});
+
+test('validateSystem rejects a non-boolean anchored flag', () => {
+  const base = { id: 'x', teamCount: 1, cycleDuration: 60, segments: [{ offset: 0, duration: 60, teamIndex: 0 }] };
+  assert.equal(validateSystem({ ...base, anchored: true }).valid, true);
+  assert.equal(validateSystem({ ...base, anchored: 'yes' }).valid, false);
+});
+
+test('anchored systems align to clock hours regardless of start time', () => {
+  const sys = getSystemById('rn-dog-watches');
+  assert.equal(sys.anchored, true);
+  // Started mid-afternoon at 15:00; the cycle is still anchored to midnight.
+  const start = new Date(2026, 0, 1, 15, 0, 0).getTime();
+  const now = start + 5 * MIN;
+  const [first] = resolveSchedule(sys, TEAMS, start, now, { count: 1 });
+  // The current watch is the clock-anchored Afternoon watch (12:00–16:00),
+  // even though we started at 15:00.
+  assert.equal(first.label, 'Afternoon');
+  assert.equal(first.startTime, new Date(2026, 0, 1, 12, 0, 0).getTime());
+  assert.equal(first.endTime, new Date(2026, 0, 1, 16, 0, 0).getTime());
+  assert.equal(first.isCurrent, true);
+});
+
+test('rotating systems start the cycle from startedAt, not the clock', () => {
+  const sys = getSystemById('fixed-4-4');
+  assert.equal(sys.anchored, false);
+  const start = new Date(2026, 0, 1, 15, 0, 0).getTime();
+  const [first] = resolveSchedule(sys, TEAMS, start, start + 5 * MIN, { count: 1 });
+  assert.equal(first.startTime, start, 'offset 0 lands exactly at startedAt');
+});
+
 test('dog watches flip teams on the second day', () => {
   const sys = getSystemById('rn-dog-watches');
   const start = new Date(2026, 0, 1, 0, 0, 0).getTime();
@@ -117,14 +154,18 @@ test('dog watches flip teams on the second day', () => {
   assert.equal(getCurrentSegment(sys, start, start + 24 * HOUR + 30 * MIN).segment.teamIndex, 1);
 });
 
-test('availableSystems filters by configured team count', () => {
-  const forTwo = availableSystems(2);
-  assert.ok(forTwo.every((s) => s.teamCount <= 2));
-  assert.ok(!forTwo.some((s) => s.id === 'swedish-5'), 'swedish needs 3 teams');
+test('availableSystems shows only systems matching the configured team count', () => {
+  // Exact match: a crew sees only systems that need exactly that many teams.
+  for (const n of [2, 3, 4, 5]) {
+    const avail = availableSystems(n);
+    assert.ok(avail.length > 0, `expected built-in rotations for ${n} teams`);
+    assert.ok(avail.every((s) => s.teamCount === n), `${n}-team crew sees only ${n}-team systems`);
+  }
 
-  const forThree = availableSystems(3);
-  assert.ok(forThree.some((s) => s.id === 'swedish-5'));
+  // A two-team rotation must not leak into a three-team crew's list.
+  assert.ok(!availableSystems(3).some((s) => s.id === 'fixed-4-4'));
 
   const custom = [{ id: 'c1', name: 'Custom', teamCount: 2, cycleDuration: 60, segments: [{ offset: 0, duration: 60, teamIndex: 0 }] }];
   assert.ok(availableSystems(2, custom).some((s) => s.id === 'c1'));
+  assert.ok(!availableSystems(3, custom).some((s) => s.id === 'c1'), 'custom 2-team system hidden from 3-team crew');
 });

@@ -31,12 +31,22 @@
 /**
  * A WATCH SYSTEM — a complete repeating rotation definition.
  * Segments must be contiguous and exactly cover [0, cycleDuration).
+ *
+ * `anchored` decides how segment offsets are interpreted when resolved:
+ *   - falsy (a simple ROTATING cycle): offset 0 is the moment the watch is
+ *     started. The rotation simply repeats from `startedAt`; clock times fall
+ *     wherever the start lands.
+ *   - true (ANCHORED to the clock): offset 0 is local midnight, so segment
+ *     boundaries always land on the same clock hours no matter when the watch
+ *     is started. Use for traditional named systems (Middle, Morning, …).
+ *
  * @typedef {Object} WatchSystem
  * @property {string} id            Stable key, e.g. "rn-dog-watches".
  * @property {string} name          Display name.
  * @property {string} description   Human description for the picker.
  * @property {number} teamCount     Number of teams this rotation requires.
  * @property {number} cycleDuration Total minutes in one full cycle (segments sum to this).
+ * @property {boolean} [anchored]   True to anchor offset 0 to local midnight (clock-aligned).
  * @property {boolean} [builtin]    True for shipped presets.
  * @property {WatchSegment[]} segments  Ordered, contiguous segments.
  */

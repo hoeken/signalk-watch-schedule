@@ -5,5 +5,5 @@
  */
 
 export { PALETTE, getTeamColor } from './colors.js';
-export { snapToHour, validateSystem, getCurrentSegment, resolveSchedule } from './schedule.js';
+export { snapToHour, snapToDay, validateSystem, getCurrentSegment, resolveSchedule } from './schedule.js';
 export { BUILTIN_SYSTEMS, getSystemById, availableSystems } from './systems.js';

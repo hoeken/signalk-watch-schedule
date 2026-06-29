@@ -118,7 +118,7 @@ test('start rejects an unavailable system', async () => {
   plugin.registerWithRouter(router);
 
   const res = makeRes();
-  await router.routes['post /api/watch/start']({ body: { systemId: 'swedish-5' } }, res); // needs 3 teams
+  await router.routes['post /api/watch/start']({ body: { systemId: 'no-such-system' } }, res); // unknown id
   assert.equal(res.statusCode, 400);
   plugin.stop();
   fs.rmSync(app.dir, { recursive: true, force: true });

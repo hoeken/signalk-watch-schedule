@@ -37,6 +37,30 @@ export function snapToHour(epochMs, mode = 'nearest') {
 }
 
 /**
+ * Snap an epoch-ms timestamp down to the most recent local midnight. Used as the
+ * cycle anchor for clock-anchored systems, so segment offset 0 lands at 00:00.
+ * @param {number} epochMs
+ * @returns {number} epoch ms at local midnight on or before epochMs
+ */
+export function snapToDay(epochMs) {
+  const d = new Date(epochMs);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/**
+ * The cycle anchor for a system — the absolute time at which segment offset 0
+ * sits. Anchored systems align to local midnight so their boundaries fall on
+ * fixed clock hours; rotating systems simply repeat from `startedAt`.
+ * @param {WatchSystem} system
+ * @param {number} startedAt epoch ms (already snapped to the hour)
+ * @returns {number} epoch ms
+ */
+function cycleAnchor(system, startedAt) {
+  return system.anchored ? snapToDay(startedAt) : startedAt;
+}
+
+/**
  * Validate that a system's segments are contiguous, cover the whole cycle, and
  * reference valid teams.
  * @param {WatchSystem} system
@@ -50,6 +74,7 @@ export function validateSystem(system) {
   if (typeof system.id !== 'string' || !system.id) errors.push('missing id');
   if (typeof system.teamCount !== 'number' || system.teamCount < 1) errors.push('teamCount must be >= 1');
   if (typeof system.cycleDuration !== 'number' || system.cycleDuration <= 0) errors.push('cycleDuration must be > 0');
+  if (system.anchored !== undefined && typeof system.anchored !== 'boolean') errors.push('anchored must be a boolean');
   if (!Array.isArray(system.segments) || system.segments.length === 0) {
     errors.push('segments must be a non-empty array');
     return { valid: false, errors };
@@ -85,8 +110,9 @@ export function validateSystem(system) {
  */
 export function getCurrentSegment(system, startedAt, now) {
   if (!startedAt || now < startedAt) return null;
+  const anchor = cycleAnchor(system, startedAt);
   const cycleMs = system.cycleDuration * MS_PER_MIN;
-  const elapsed = now - startedAt;
+  const elapsed = now - anchor;
   const cycleIndex = Math.floor(elapsed / cycleMs);
   const posMin = (elapsed - cycleIndex * cycleMs) / MS_PER_MIN;
   for (const segment of system.segments) {
@@ -112,11 +138,12 @@ export function resolveSchedule(system, teams, startedAt, now, opts = {}) {
   const count = opts.count ?? 8;
   if (!system || !Array.isArray(system.segments) || system.segments.length === 0) return [];
 
+  const anchor = cycleAnchor(system, startedAt);
   const cycleMs = system.cycleDuration * MS_PER_MIN;
   const segs = [...system.segments].sort((a, b) => a.offset - b.offset);
 
   // Locate the starting segment: the one containing `now`, else the first.
-  const elapsed = Math.max(0, now - startedAt);
+  const elapsed = Math.max(0, now - anchor);
   let cycleIndex = Math.floor(elapsed / cycleMs);
   const posMin = (elapsed - cycleIndex * cycleMs) / MS_PER_MIN;
   let segIdx = segs.findIndex((s) => posMin >= s.offset && posMin < s.offset + s.duration);
@@ -127,7 +154,7 @@ export function resolveSchedule(system, teams, startedAt, now, opts = {}) {
   let si = segIdx;
   for (let n = 0; n < count; n++) {
     const seg = segs[si];
-    const startTime = startedAt + ci * cycleMs + seg.offset * MS_PER_MIN;
+    const startTime = anchor + ci * cycleMs + seg.offset * MS_PER_MIN;
     const endTime = startTime + seg.duration * MS_PER_MIN;
     const team = teams[seg.teamIndex];
     shifts.push({

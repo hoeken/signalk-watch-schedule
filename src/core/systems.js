@@ -1,7 +1,10 @@
 /**
- * Built-in watch-system presets. All are time-agnostic (minutes only) and pass
- * validateSystem(). Captains may add custom systems via plugin config; they use
- * the same {@link WatchSystem} schema and are merged with these.
+ * Built-in watch-system presets. Segments are always stored in minutes only; a
+ * system's `anchored` flag decides whether those offsets are read from the watch
+ * start (a simple rotating cycle) or from local midnight (clock-anchored, so the
+ * watches land on fixed clock hours). All pass validateSystem(). Captains may add
+ * custom systems via plugin config; they use the same {@link WatchSystem} schema
+ * and are merged with these.
  *
  * @typedef {import('./types.js').WatchSystem} WatchSystem
  * @typedef {import('./types.js').WatchSegment} WatchSegment
@@ -38,11 +41,49 @@ function buildRotatingDaily(slots, teamCount, days) {
 const H = 60; // minutes per hour, for readability below
 
 /**
+ * A simple rotating watch: `teamCount` teams each stand an equal
+ * `watchHours`-hour watch in turn, so every team is `watchHours` hours on then
+ * `(teamCount - 1) × watchHours` hours off. Not clock-anchored — the cycle just
+ * repeats from whenever the watch is started.
+ *
+ * The id encodes on/off hours (`fixed-4-4`, `fixed-4-8`, …); since
+ * off = (teamCount − 1) × on, the pair uniquely identifies the system, so ids
+ * never collide across team counts and the long-standing two-team ids stay valid.
+ *
+ * @param {number} teamCount
+ * @param {number} watchHours length of each watch in hours
+ * @returns {WatchSystem}
+ */
+function fixedRotation(teamCount, watchHours) {
+  const duration = watchHours * H;
+  const offHours = (teamCount - 1) * watchHours;
+  return {
+    id: `fixed-${watchHours}-${offHours}`,
+    name: `${watchHours}-on / ${offHours}-off`,
+    description: `${teamCount} teams take turns standing equal ${watchHours}-hour watches: ${watchHours}h on, ${offHours}h off.`,
+    teamCount,
+    cycleDuration: teamCount * duration,
+    anchored: false,
+    builtin: true,
+    segments: Array.from({ length: teamCount }, (_, i) => ({
+      offset: i * duration,
+      duration,
+      teamIndex: i,
+    })),
+  };
+}
+
+/** Team sizes we ship simple rotations for, and the watch lengths offered. */
+const TEAM_COUNTS = [2, 3, 4, 5];
+const WATCH_HOURS = [4, 3, 2];
+
+/**
  * Royal Navy day: four 4-hour watches, two 2-hour dog watches, then a 4-hour
  * watch. Seven watches/day (an odd count) means alternating teams land on
  * opposite watches the next day — the whole point of dog watches. Repeats over
- * two days. Labels are nominal (relative to start, which is snapped to a whole
- * hour) since the system is time-agnostic.
+ * two days. This system is clock-ANCHORED (offset 0 = midnight), so the labels
+ * line up with their traditional hours: Middle 00:00, Morning 04:00, Forenoon
+ * 08:00, Afternoon 12:00, First Dog 16:00, Last Dog 18:00, First 20:00.
  */
 const RN_DAY = [
   { duration: 4 * H, label: 'Middle' },
@@ -54,76 +95,21 @@ const RN_DAY = [
   { duration: 4 * H, label: 'First' },
 ];
 
-/**
- * Swedish/Scandinavian day: variable-length watches, shorter through the night.
- * Six watches/day rotated across three teams over a three-day cycle so each
- * team rotates through every slot — nobody is permanently stuck on the worst
- * night watch.
- */
-const SWEDISH_DAY = [
-  { duration: 5 * H, label: 'Forenoon' },
-  { duration: 5 * H, label: 'Afternoon' },
-  { duration: 4 * H, label: 'Evening' },
-  { duration: 3 * H, label: 'First Night' },
-  { duration: 3 * H, label: 'Middle Night' },
-  { duration: 4 * H, label: 'Dawn' },
-];
-
 /** @type {WatchSystem[]} */
 export const BUILTIN_SYSTEMS = [
-  {
-    id: 'fixed-4-4',
-    name: '4-on / 4-off',
-    description: 'Two teams alternate equal four-hour watches.',
-    teamCount: 2,
-    cycleDuration: 8 * H,
-    builtin: true,
-    segments: [
-      { offset: 0, duration: 4 * H, teamIndex: 0 },
-      { offset: 4 * H, duration: 4 * H, teamIndex: 1 },
-    ],
-  },
-  {
-    id: 'fixed-3-3',
-    name: '3-on / 3-off',
-    description: 'Two teams alternate equal three-hour watches — shorter blocks, gentler sleep swing.',
-    teamCount: 2,
-    cycleDuration: 6 * H,
-    builtin: true,
-    segments: [
-      { offset: 0, duration: 3 * H, teamIndex: 0 },
-      { offset: 3 * H, duration: 3 * H, teamIndex: 1 },
-    ],
-  },
-  {
-    id: 'fixed-6-6',
-    name: '6-on / 6-off',
-    description: 'Two teams alternate equal six-hour watches — two watches a day.',
-    teamCount: 2,
-    cycleDuration: 12 * H,
-    builtin: true,
-    segments: [
-      { offset: 0, duration: 6 * H, teamIndex: 0 },
-      { offset: 6 * H, duration: 6 * H, teamIndex: 1 },
-    ],
-  },
+  // Classic short-handed two-team schedule, kept alongside the generated family.
+  fixedRotation(2, 6),
+  // Simple rotations for 2–5 teams at 4h / 3h / 2h watch lengths.
+  ...TEAM_COUNTS.flatMap((teamCount) => WATCH_HOURS.map((hours) => fixedRotation(teamCount, hours))),
   {
     id: 'rn-dog-watches',
     name: 'Royal Navy (Dog Watches)',
-    description: 'Classic four-hour watches with two short evening dog watches so the rotation shifts daily between two teams.',
+    description: 'Classic four-hour watches with two short evening dog watches so the rotation shifts daily between two teams. Anchored to the clock (Middle starts at midnight).',
     teamCount: 2,
     cycleDuration: 2 * 24 * H,
+    anchored: true,
     builtin: true,
     segments: buildRotatingDaily(RN_DAY, 2, 2),
-  },
-  {
-    id: 'swedish-5',
-    name: 'Swedish / Scandinavian',
-    description: 'Variable-length watches, shorter at night, rotated across three teams over three days so the night watch is shared fairly.',
-    teamCount: 3,
-    cycleDuration: 3 * 24 * H,
-    builtin: true,
-    segments: buildRotatingDaily(SWEDISH_DAY, 3, 3),
   },
 ];
 
@@ -139,11 +125,13 @@ export function getSystemById(id, systems = BUILTIN_SYSTEMS) {
 
 /**
  * All systems available for a crew of the given size: built-ins plus custom,
- * filtered to those whose teamCount fits the number of configured teams.
+ * filtered to those that need exactly the number of configured teams. A rotation
+ * with fewer teams would leave some teams without a watch and one with more can't
+ * be staffed, so only an exact match is offered.
  * @param {number} teamCount
  * @param {WatchSystem[]} [customSystems]
  * @returns {WatchSystem[]}
  */
 export function availableSystems(teamCount, customSystems = []) {
-  return [...BUILTIN_SYSTEMS, ...customSystems].filter((s) => s.teamCount <= teamCount);
+  return [...BUILTIN_SYSTEMS, ...customSystems].filter((s) => s.teamCount === teamCount);
 }

@@ -79,8 +79,11 @@ export default function App() {
   } else {
     const selected = systems.find((s) => s.id === selectedSystemId);
     if (selected) {
-      // resolve with now just before start so nothing is flagged current in preview
-      shifts = resolveSchedule(selected, teams, startsAt, startsAt - 1, { count: SHIFT_COUNT });
+      // Preview the rotation as if started now. Clear isCurrent explicitly: we
+      // aren't on watch yet, and for clock-anchored systems `now` would otherwise
+      // land inside the current clock watch and flag it.
+      shifts = resolveSchedule(selected, teams, startsAt, startsAt, { count: SHIFT_COUNT })
+        .map((s) => ({ ...s, isCurrent: false }));
       preview = true;
     }
   }
