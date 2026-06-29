@@ -2,7 +2,7 @@ import { formatClock, formatClockDay, formatDuration, untilLabel, agoLabel, hexT
 
 /**
  * One shift in the schedule list. Each team has its own color; the active shift
- * is highlighted with a tinted background and an ON WATCH badge. Non-current
+ * is highlighted with a tinted background. Non-current
  * shifts read relative to `now`: upcoming ones count down ("in 2h"), already
  * elapsed ones count up ("ended 1h ago") — the latter shows up when previewing a
  * back-dated start.
@@ -35,7 +35,6 @@ export default function ShiftCard({ shift, now, withDay }) {
         <div className="shift__dur">{formatDuration(shift.durationMin)}</div>
         {isCurrent ? (
           <div className="shift__status">
-            <span className="badge">ON WATCH</span>
             <span className="muted">ends in {untilLabel(shift.endTime, now)}</span>
           </div>
         ) : ended ? (
