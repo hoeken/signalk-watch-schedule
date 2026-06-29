@@ -62,6 +62,11 @@ jobs:
       - name: Publish to npm
         run: |
           tag="${GITHUB_REF#refs/tags/}"
+          version="${tag#v}"
+          if npm view "signalk-watch-schedule@${version}" version >/dev/null 2>&1; then
+            echo "v${version} already on npm — skipping publish."
+            exit 0
+          fi
           if [[ "$tag" == *alpha* ]]; then
             npm publish --provenance --access public --tag alpha
           elif [[ "$tag" == *beta* ]]; then
