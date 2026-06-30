@@ -224,6 +224,14 @@ textarea {
   color: var(--muted);
 }
 
+/* Space each schedule segment heading (Current/Upcoming/Past Watches) away from
+   the list above it. The first heading has no list before it, so it keeps the
+   panel's default top margin. Scoped tighter than `.panel h2` to outrank that
+   rule, which otherwise zeroes margin-top. */
+.panel .schedule + h2 {
+  margin-top: 20px;
+}
+
 /* ---- schedule list ---- */
 .schedule {
   list-style: none;

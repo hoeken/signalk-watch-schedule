@@ -171,7 +171,6 @@ export default function App() {
 
       <main className={`layout${controllable ? "" : " layout--solo"}`}>
         <section className="panel schedule-panel">
-          <h2>{!onWatch ? "Schedule" : notStarted ? "Scheduled" : "On Watch"}</h2>
           <ScheduleList
             shifts={shifts}
             now={now}
