@@ -167,8 +167,8 @@ export default function App() {
   const doStart = () =>
     handleControl(() => api.startWatch(selectedSystemId, { startAt: startHour, teamOrder: order }));
   const doStop = () => handleControl(() => api.stopWatch());
-  const doLogin = async (u, p) => {
-    await api.login(u, p);
+  const doLogin = async (u, p, rememberMe) => {
+    await api.login(u, p, rememberMe);
     await refresh();
     setShowLogin(false);
   };

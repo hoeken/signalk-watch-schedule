@@ -111,12 +111,12 @@ export const startWatch = (systemId, opts = {}) =>
 export const stopWatch = () => post(`${BASE}/api/watch/stop`);
 
 /** Log in against SignalK; the auth cookie is then sent with future requests. */
-export async function login(username, password) {
+export async function login(username, password, rememberMe = true) {
   const res = await fetch("/signalk/v1/auth/login", {
     method: "POST",
     headers: json,
     credentials: "include",
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, rememberMe }),
   });
   if (!res.ok)
     throw new Error("Login failed — check username and password");

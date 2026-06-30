@@ -4,6 +4,7 @@ import { useState } from "react";
 export default function LoginPanel({ onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -12,7 +13,7 @@ export default function LoginPanel({ onLogin }) {
     setBusy(true);
     setError(null);
     try {
-      await onLogin(username, password);
+      await onLogin(username, password, rememberMe);
     } catch (ex) {
       setError(ex.message);
     } finally {
@@ -22,7 +23,7 @@ export default function LoginPanel({ onLogin }) {
 
   return (
     <form className="login" onSubmit={submit}>
-      <div className="login__title">Log in to control the watch</div>
+      <div className="login__title">Log in</div>
       <input
         placeholder="Username"
         value={username}
@@ -36,11 +37,18 @@ export default function LoginPanel({ onLogin }) {
         autoComplete="current-password"
         onChange={(e) => setPassword(e.target.value)}
       />
+      <label className="login__remember">
+        <input
+          type="checkbox"
+          checked={rememberMe}
+          onChange={(e) => setRememberMe(e.target.checked)}
+        />
+        Remember me?
+      </label>
       {error ? <div className="warn">{error}</div> : null}
       <button className="btn btn--start" disabled={busy}>
         {busy ? "Logging in…" : "Log in"}
       </button>
-      <div className="muted">You can view the schedule without logging in.</div>
     </form>
   );
 }

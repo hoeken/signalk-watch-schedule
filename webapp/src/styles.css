@@ -530,6 +530,22 @@ input {
   font-weight: 700;
 }
 
+.login__remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.login__remember input {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+}
+
 /* ---- login modal (native <dialog>) ---- */
 /* Override the UA dialog box into a full-viewport flex container so the panel
    centers both ways even on Chromium 69 (no `inset`/`place-content` there). */
