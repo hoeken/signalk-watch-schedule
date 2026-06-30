@@ -5,14 +5,12 @@ on offshore or overnight passages. The captain defines watch teams and picks a
 rotation; the plugin tracks whether the boat is on watch, when it started, and shows a clean,
 color-coded, responsive schedule on any device.
 
-![status: alpha](https://img.shields.io/badge/status-alpha-orange)
-
 ## Features
 
 - **Watch teams** configured in the plugin settings — name each for the watch or the crew standing it.
 - **Built-in rotation systems**: 4-on/4-off, 3-on/3-off, 6-on/6-off, and Royal Navy dog watches.
 - **Whole-hour starts** — the schedule always begins on a clean clock hour, with a start-time
-  picker covering ±12 hours so you can log a watch that began earlier or schedule one ahead.
+  picker covering ±12 hours so you can sync a watch that began earlier or schedule one ahead.
 - **Pick who's first** — drag (or nudge with ▲/▼) the watch teams into order; the team on top
   starts at the chosen time, the rest follow.
 - **Live, color-coded schedule** starting with the active shift, highlighted and counting down.
