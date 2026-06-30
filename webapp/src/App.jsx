@@ -158,7 +158,7 @@ export default function App() {
   const loggedIn = loginStatus?.status === "loggedIn";
 
   return (
-    <div className="app">
+    <div className={`app${controllable ? "" : " app--solo"}`}>
       <header className="topbar">
         <div className="topbar__title">
           <span className={`status-dot ${notStarted ? "pending" : onWatch ? "on" : "off"}`} />

@@ -75,6 +75,15 @@ textarea {
   padding: env(safe-area-inset-top, 0px) 16px 32px;
 }
 
+/* Solo mode (no control panel): cap the whole app — topbar, error banner and
+   schedule together — to the width the schedule occupies in two-column mode
+   (full width minus the 320px control column and its 16px gap). margin: 0 auto
+   from .app still centers it. This keeps the topbar lined up with the single
+   column, and the schedule the same size whether or not controls are shown. */
+.app--solo {
+  max-width: calc(1100px - 320px - 16px);
+}
+
 /* ---- top bar ---- */
 .topbar {
   display: flex;
@@ -186,8 +195,9 @@ textarea {
     align-items: start;
   }
 
-  /* No control panel for anonymous viewers — let the schedule use the full width
-     rather than leaving the reserved second column empty. */
+  /* No control panel for anonymous viewers — collapse back to a single column.
+     The overall width is capped on .app--solo (so the topbar and banner line up
+     with the schedule); here the column just fills that narrowed width. */
   .layout--solo {
     grid-template-columns: 1fr;
   }
