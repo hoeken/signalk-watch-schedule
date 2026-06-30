@@ -1,3 +1,13 @@
+# v0.2.1
+
+## ✨ Improvements
+
+- 🔄 The live schedule view stays reliably up to date — it now polls the watch state every 5s instead of relying on a streaming WebSocket connection that could quietly stall after the screen sat idle
+
+## 🎨 Webapp
+
+- 🔔 Bigger, bolder, clearer banners when a watch is in preview or scheduled to start later
+
 # v0.2.0
 
 ## ✨ Improvements
