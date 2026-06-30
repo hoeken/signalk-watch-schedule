@@ -1,3 +1,21 @@
+# v0.2.0
+
+## ✨ Improvements
+
+- 🕛 Anchored rotations now lead off with the first team in your order at the chosen start time, instead of letting midnight decide who's on watch first — clock-aligned boundaries and fair rotation are preserved
+- ⏳ Watches scheduled to start in the future stay inactive until they begin: `watch.current` is held null and the webapp shows a "Scheduled" header with a countdown to the start
+- 🔌 Recommends companion plugins (`@meri-imperiumi/signalk-autostate`, `signalk-navico-embedder`) from the SignalK app store
+
+## 🎨 Webapp
+
+- 🔐 Login moved into a centered modal triggered from the title bar
+- 💳 Restyled shift card layout and typography, with tighter alignment and a wider, fixed-width watch-time column
+
+## 🔧 Under the hood
+
+- 🚦 Publish workflow skips releasing a version that's already on npm
+- 🖼️ Refreshed screenshots and added a read-only view
+
 # v0.1.0
 
 Initial release.

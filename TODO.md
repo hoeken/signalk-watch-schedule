@@ -1,7 +1,3 @@
-# v0.2.0
-
-* update screenshots
-
 # Long Term
 
 * add option to automatically start watch based on autostate?
