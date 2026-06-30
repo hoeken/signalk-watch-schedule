@@ -41,8 +41,9 @@
       "./docs/screenshots/mobile.png"
     ],
     "recommends": [
+      "signalk-navico-embedder",
       "@meri-imperiumi/signalk-autostate",
-      "signalk-navico-embedder"
+      "@meri-imperiumi/signalk-logbook"
     ]
   },
   "author": "Zach Hoeken",

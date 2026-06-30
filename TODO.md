@@ -7,6 +7,7 @@
       * if state transistions from sailing|motoring -> moored|anchored, then stop our watch schedule
       * ignore any sailing <-> motoring transitions or moored <-> anchored transitions
 
-# Long Term
-
-* add option to use crew from a plugin that provides crew - which one?
+* communication.crewNames integration
+  * change our team config default to an empty array
+  * if our config teams array is empty, fall back to using communication.crewNames
+  * if communication.crewNames is empty, fall back to using ["Team 1", "Team 2", "Team 3"]
