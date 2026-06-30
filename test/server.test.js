@@ -97,14 +97,18 @@ function makeApp(crewNames) {
   const deltas = [];
   // Minimal Bacon-like stream: tests push navigation.state values via navState.
   let stateCb = null;
-  return {
+  const app = {
     dir,
     deltas,
     navState: (v) => stateCb && stateCb(v),
     getSelfPath: (p) => (p === "communication.crewNames" ? crewNames : undefined),
     getDataDirPath: () => dir,
     handleMessage: (_id, delta) => deltas.push(delta),
-    setPluginStatus: () => {},
+    // Record the latest status/error so tests can assert the crew-size feedback.
+    pluginStatus: null,
+    pluginError: null,
+    setPluginStatus: (m) => { app.pluginStatus = m; app.pluginError = null; },
+    setPluginError: (m) => { app.pluginError = m; },
     error: () => {},
     debug: () => {},
     streambundle: {
@@ -117,6 +121,7 @@ function makeApp(crewNames) {
     },
     // no securityStrategy → security disabled → writes allowed
   };
+  return app;
 }
 
 function makeRouter() {
@@ -146,6 +151,25 @@ test("plugin publishes watch.* deltas on start", () => {
   for (const p of ["watch.state.onWatch", "watch.system", "watch.schedule", "watch.current"]) {
     assert.ok(paths.includes(p), `expected delta for ${p}`);
   }
+});
+
+test("plugin status reflects an unschedulable crew size", () => {
+  // Valid range is a normal status...
+  const ok = makeApp();
+  createPlugin(ok).start(OPTIONS); // 2 teams
+  assert.equal(ok.pluginError, null);
+  assert.match(ok.pluginStatus, /Idle/);
+
+  // ...too few teams (the built-in rotations need at least 2) is an error...
+  const few = makeApp();
+  createPlugin(few).start({ ...OPTIONS, teams: [{ name: "Solo" }] });
+  assert.match(few.pluginError, /2–5 teams/);
+
+  // ...and so is too many.
+  const many = makeApp();
+  const sixTeams = Array.from({ length: 6 }, (_, i) => ({ name: `T${i}` }));
+  createPlugin(many).start({ ...OPTIONS, teams: sixTeams });
+  assert.match(many.pluginError, /2–5 teams/);
 });
 
 test("start route snaps to the hour and stop clears state", async () => {

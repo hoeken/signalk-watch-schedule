@@ -90,6 +90,14 @@ export default function App() {
 
   const state = view?.state ?? { onWatch: false, startedAt: null, systemId: null };
   const teams = view?.teams ?? [];
+  // The schedule is built for a crew of 2–5 teams; outside that range no valid
+  // rotation exists, so surface it rather than render a broken schedule.
+  const teamCountError =
+    teams.length < 2
+      ? `Need at least 2 watch teams${teams.length === 1 ? " (only 1 configured)" : ""} — add more in the plugin settings.`
+      : teams.length > 5
+        ? `Too many watch teams (${teams.length}) — the schedule supports at most 5.`
+        : null;
   const onWatch = state.onWatch;
   // A watch can be scheduled to begin in the future: it's "on watch" but hasn't
   // started yet. Flagged separately so the UI reads as pending/grey rather than
@@ -192,7 +200,9 @@ export default function App() {
         </div>
       </header>
 
-      {error ? <div className="warn banner">{error}</div> : null}
+      {error || teamCountError ? (
+        <div className="warn banner">{error || teamCountError}</div>
+      ) : null}
 
       <main className={`layout${controllable ? "" : " layout--solo"}`}>
         <section className="panel schedule-panel">

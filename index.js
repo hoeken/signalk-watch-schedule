@@ -63,10 +63,26 @@ export default function (app) {
   // down the subscription only — the watch itself is persisted and survives stop.
   let unsubscribeAutoWatch = null;
 
+  // Reflect the effective crew size in the plugin status. The built-in rotations
+  // only cover 2–5 teams (availableSystems), so a crew outside that range can't
+  // be scheduled — surface it as a plugin error, the same condition the webapp
+  // shows as a banner. Driven off the published view so both a config change and
+  // a runtime communication.crewNames change are caught.
+  const updateStatus = (data) => {
+    const count = data.teams.length;
+    if (count < 2 || count > 5) {
+      app.setPluginError(`Watch needs 2–5 teams — ${count} configured. Update Watch Teams in the plugin settings.`);
+      return;
+    }
+    app.setPluginStatus(data.state.onWatch ? `On watch (${data.state.systemId})` : "Idle — no watch in progress");
+  };
+
   const publishNow = () => {
     if (!store)
       return;
-    publish(app, plugin.id, buildWatchData(store.get(), options, Date.now(), app));
+    const data = buildWatchData(store.get(), options, Date.now(), app);
+    publish(app, plugin.id, data);
+    updateStatus(data);
   };
 
   plugin.schema = () => ({
@@ -140,8 +156,6 @@ export default function (app) {
       timer.unref();
     if (options.autoWatch)
       unsubscribeAutoWatch = startAutoWatch({ app, getOptions: () => options, getStore: () => store, publishNow });
-    const s = store.get();
-    app.setPluginStatus(s.onWatch ? `On watch (${s.systemId})` : "Idle — no watch in progress");
   };
 
   plugin.stop = () => {
