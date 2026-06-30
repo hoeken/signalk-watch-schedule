@@ -324,24 +324,19 @@ textarea {
   margin-top: 2px;
 }
 
-.preview-note {
-  font-size: 0.8rem;
-  color: var(--muted);
-  margin-bottom: 10px;
-  font-style: italic;
-}
-
-/* Grey callout for a watch that's scheduled but hasn't begun. Neutral on
-   purpose — the muted left border and panel background keep it clearly apart
-   from the team-colored, tinted styling of an active shift. */
+/* Grey callout for a watch that's scheduled but hasn't begun, and the preview
+   banner. Neutral on purpose — the muted left border and panel background keep
+   them clearly apart from the team-colored, tinted styling of an active shift. */
+.preview-note,
 .pending-note {
-  font-size: 0.85rem;
+  font-size: 1.05rem;
+  font-weight: 600;
   color: var(--muted);
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-left: 5px solid var(--muted);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 16px 12px;
   margin-bottom: 12px;
 }
 

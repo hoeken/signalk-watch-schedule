@@ -23,10 +23,10 @@ export default function ScheduleList({ shifts, now, preview, startsAt }) {
 
   return (
     <>
-      {preview ? <div className="preview-note">Preview — watch not started</div> : null}
+      {preview ? <div className="preview-note">Preview Mode: watch not yet started</div> : null}
       {startsAt ? (
         <div className="pending-note">
-          Watch schedule not active yet — begins {formatDateTime(startsAt)}
+          Watch schedule not yet active: begins {formatDateTime(startsAt)}
           {startsIn ? ` (in ${startsIn})` : ""}
         </div>
       ) : null}
