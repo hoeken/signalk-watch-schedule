@@ -254,8 +254,9 @@ Mounted under the plugin's router base: `/plugins/signalk-watch-schedule/api`.
 - **React 18 + Vite** build → `public/`, served by SignalK at `/signalk-watch-schedule`.
 - Lightweight styling via CSS modules / a small utility layer (no heavyweight UI kit needed);
   responsive with CSS grid/flex + container queries. Mobile-first.
-- Data layer: `fetch` to the plugin REST API for control + initial load, and the SignalK
-  **streaming deltas** (WebSocket) subscribed to `watch.*` for live updates. Imports `src/core`
+- Data layer: `fetch` to the plugin REST API for control + initial load, and **HTTP
+  polling** of the composed watch state on an interval for live updates (the watch
+  refreshes slowly, so polling avoids WebSocket reconnection edge cases). Imports `src/core`
   to resolve/format shifts client-side as a fallback and for relative-time labels.
 
 ### 6.2 Auth detection

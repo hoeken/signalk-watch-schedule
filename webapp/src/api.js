@@ -131,39 +131,32 @@ export async function logout() {
   }
 }
 
+/** Default interval between state polls, in ms. */
+export const POLL_INTERVAL_MS = 5000;
+
 /**
- * Subscribe to watch.* deltas. Invokes `onChange` whenever the server publishes
- * an update (the app then re-fetches the composed state). Returns an unsubscribe.
+ * Poll the composed watch state on an interval, invoking `onState` with each
+ * successful fetch. The watch refreshes slowly (shifts rotate hourly; state
+ * changes only on start/stop), so simple HTTP polling is enough — no WebSocket,
+ * and no reconnection edge cases that can silently stall after idle periods.
+ *
+ * Transient fetch errors are swallowed so one failed poll doesn't stop the rest.
+ * Returns a stop function.
  */
-export function subscribeWatch(onChange) {
-  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-  let ws;
-  try {
-    ws = new WebSocket(`${proto}//${window.location.host}/signalk/v1/stream?subscribe=none`);
-    ws.onopen = () =>
-      ws.send(
-        JSON.stringify({
-          context: "vessels.self",
-          subscribe: [{ path: "watch.*", period: 2000, policy: "instant" }],
-        }),
-      );
-    ws.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(ev.data);
-        if (Array.isArray(msg.updates))
-          onChange();
-      } catch {
-        /* ignore non-JSON frames */
-      }
-    };
-  } catch {
-    /* WS unavailable; the app still polls as a fallback */
-  }
+export function pollState(onState, intervalMs = POLL_INTERVAL_MS) {
+  let stopped = false;
+  const id = setInterval(() => {
+    getState()
+      .then((v) => {
+        if (!stopped)
+          onState(v);
+      })
+      .catch(() => {
+        /* transient failure; the next tick will retry */
+      });
+  }, intervalMs);
   return () => {
-    try {
-      ws && ws.close();
-    } catch {
-      /* ignore */
-    }
+    stopped = true;
+    clearInterval(id);
   };
 }

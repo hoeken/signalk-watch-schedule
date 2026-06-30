@@ -28,7 +28,7 @@ export default defineConfig({
     proxy: {
       "/plugins": "http://localhost:3000",
       "/skServer": "http://localhost:3000",
-      "/signalk": { target: "http://localhost:3000", ws: true },
+      "/signalk": "http://localhost:3000",
     },
   },
 });

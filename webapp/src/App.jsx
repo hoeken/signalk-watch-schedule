@@ -30,30 +30,19 @@ export default function App() {
     setLoginStatus(login);
   }, []);
 
-  // Initial load + live delta subscription + 1s ticker (drives countdowns and
-  // advances the current shift locally using the shared core).
+  // Initial load + state polling + 1s ticker (drives countdowns and advances the
+  // current shift locally using the shared core between polls).
   useEffect(() => {
     refresh()
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
 
-    let pending = null;
-    const onDelta = () => {
-      if (pending)
-        return;
-      pending = setTimeout(() => {
-        pending = null;
-        api.getState().then(setView).catch(() => {});
-      }, 300);
-    };
-    const unsub = api.subscribeWatch(onDelta);
+    const stopPolling = api.pollState(setView);
     const ticker = setInterval(() => setNow(Date.now()), 1000);
 
     return () => {
-      unsub();
+      stopPolling();
       clearInterval(ticker);
-      if (pending)
-        clearTimeout(pending);
     };
   }, [refresh]);
 
