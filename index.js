@@ -14,6 +14,40 @@ import { startAutoWatch } from "./src/server/auto-watch.js";
 
 const PUBLISH_INTERVAL_MS = 30_000;
 
+// SignalK paths this plugin consumes. Surfaced as read-only ✅/❌ checks at the
+// top of the settings form so the operator can see at a glance whether the data
+// the plugin relies on is actually present on the server.
+const PATH_CHECKS = [
+  {
+    path: "communication.crewNames",
+    description:
+      "Optional - used as the default Watch Teams when the list above is empty. Publish crew via a plugin such as @meri-imperiumi/signalk-logbook.",
+  },
+  {
+    path: "navigation.state",
+    description:
+      "Optional - required for Automatic watch start/stop. Detects when the boat is under way (sailing/motoring) or at rest (moored/anchored).",
+  },
+];
+
+// Build the read-only pathChecks schema properties, one per PATH_CHECKS entry,
+// with a ✅/❌ title reflecting whether the path currently resolves on self.
+function buildPathChecks(app) {
+  const props = {};
+  for (const { path, description } of PATH_CHECKS) {
+    const present =
+      typeof app.getSelfPath === "function" && app.getSelfPath(path) != null;
+    props[path] = {
+      title: `${present ? "✅" : "❌"} ${path}`,
+      description: present ? "" : description,
+      type: "null",
+      readOnly: true,
+      default: null,
+    };
+  }
+  return props;
+}
+
 export default function (app) {
   const plugin = {
     id: "signalk-watch-schedule",
@@ -35,6 +69,13 @@ export default function (app) {
   plugin.schema = () => ({
     type: "object",
     properties: {
+      pathChecks: {
+        type: "object",
+        title: "Path Checks",
+        description:
+          "Read-only status of the SignalK paths this plugin can use. ✅ present, ❌ missing.",
+        properties: buildPathChecks(app),
+      },
       teams: {
         type: "array",
         title: "Watch Teams",
