@@ -46,6 +46,26 @@ export default function App() {
     };
   }, [refresh]);
 
+  // `systems` (the available rotations) is auth-gated plugin data fetched
+  // outside the delta poll, and depends entirely on the team count
+  // (availableSystems(teams.length) server-side). When the crew changes via
+  // plugin config, the polled view.teams updates but `systems` would otherwise
+  // go stale: the picker would offer rotations for the old team count, the
+  // preview would resolve the schedule against them (showing the old teams),
+  // and /start would 400 on a systemId no longer available. Refetch on every
+  // team-count change to keep them in sync.
+  const teamCount = view?.teams?.length ?? 0;
+  useEffect(() => {
+    let cancelled = false;
+    api.getSystems().then((sys) => {
+      if (!cancelled)
+        setSystems(sys);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [teamCount]);
+
   // Default the picker to the active system (or first available) once loaded,
   // and keep the selection valid. A team-count change can drop the active
   // rotation from the available systems; selecting an id that isn't offered
