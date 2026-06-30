@@ -70,7 +70,7 @@ export function startAutoWatch(ctx) {
       // Don't clobber a watch already in progress (e.g. started manually).
       if (store.get().onWatch)
         return;
-      const result = startWatch(store, options, {});
+      const result = startWatch(store, options, {}, app);
       if (!result.ok) {
         if (typeof app.error === "function")
           app.error(`watch-schedule: auto-start failed: ${result.error}`);

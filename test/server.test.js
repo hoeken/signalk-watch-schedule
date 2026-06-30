@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { buildWatchData } from "../src/server/publisher.js";
+import { resolveTeams } from "../src/server/teams.js";
 import createPlugin from "../index.js";
 
 const TEAMS = [
@@ -55,9 +56,43 @@ test("buildWatchData applies teamOrder to the schedule and published teams", () 
   assert.equal(data.next.teamName, "Port");
 });
 
+// --- team resolution: config → communication.crewNames → generic default ---
+
+/** A minimal app whose getSelfPath returns `crewNames` for communication.crewNames. */
+const appWithCrew = (crewNames) => ({
+  getSelfPath: (path) => (path === "communication.crewNames" ? crewNames : undefined),
+});
+
+test("resolveTeams prefers configured teams over crew and default", () => {
+  const teams = resolveTeams(appWithCrew(["Alice", "Bob"]), { teams: TEAMS });
+  assert.deepEqual(teams, TEAMS);
+});
+
+test("resolveTeams falls back to communication.crewNames when teams are empty", () => {
+  // bare array form
+  assert.deepEqual(
+    resolveTeams(appWithCrew(["Zach Smith", "Apatsara Kirum"]), { teams: [] }),
+    [{ name: "Zach Smith" }, { name: "Apatsara Kirum" }],
+  );
+  // { value } wrapper form, plus trimming and dropping blanks
+  assert.deepEqual(
+    resolveTeams(appWithCrew({ value: [" Alice ", "", "Bob"] }), {}),
+    [{ name: "Alice" }, { name: "Bob" }],
+  );
+});
+
+test("resolveTeams falls back to generic teams when no config and no crew", () => {
+  const expected = [{ name: "Team 1" }, { name: "Team 2" }, { name: "Team 3" }];
+  assert.deepEqual(resolveTeams(appWithCrew(undefined), { teams: [] }), expected);
+  assert.deepEqual(resolveTeams(appWithCrew([]), {}), expected);
+  // server without getSelfPath, or a throwing one, still yields the default
+  assert.deepEqual(resolveTeams({}, {}), expected);
+  assert.deepEqual(resolveTeams({ getSelfPath: () => { throw new Error("nope"); } }, {}), expected);
+});
+
 // --- helpers to exercise the plugin + routes with a mock SignalK app ---
 
-function makeApp() {
+function makeApp(crewNames) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ws-test-"));
   const deltas = [];
   // Minimal Bacon-like stream: tests push navigation.state values via navState.
@@ -66,6 +101,7 @@ function makeApp() {
     dir,
     deltas,
     navState: (v) => stateCb && stateCb(v),
+    getSelfPath: (p) => (p === "communication.crewNames" ? crewNames : undefined),
     getDataDirPath: () => dir,
     handleMessage: (_id, delta) => deltas.push(delta),
     setPluginStatus: () => {},
@@ -312,6 +348,33 @@ test("auto-watch is disabled by default", async () => {
   app.navState("anchored");
   app.navState("sailing");
   assert.equal((await readState(router)).onWatch, false, "no subscription when disabled");
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("with no configured teams, the API falls back to communication.crewNames", async () => {
+  const app = makeApp(["Zach Smith", "Apatsara Kirum", "Lee"]); // 3 crew published
+  const plugin = createPlugin(app);
+  plugin.start({ ...OPTIONS, teams: [] }); // empty config → fall back to crew
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  const configRes = makeRes();
+  await router.routes["get /api/config"]({}, configRes);
+  assert.deepEqual(
+    configRes.body.teams,
+    [{ name: "Zach Smith" }, { name: "Apatsara Kirum" }, { name: "Lee" }],
+    "config reports the crew as teams",
+  );
+
+  // Systems are offered for the 3-crew count, and a watch can be started/ordered.
+  // fixed-4-8 is a 3-team rotation (4h on, (3-1)×4 = 8h off).
+  const startRes = makeRes();
+  await router.routes["post /api/watch/start"]({ body: { systemId: "fixed-4-8" } }, startRes);
+  assert.equal(startRes.statusCode, 200);
+  assert.equal(startRes.body.teams[0].name, "Zach Smith");
+  assert.equal(startRes.body.schedule[0].teamName, "Zach Smith");
 
   plugin.stop();
   fs.rmSync(app.dir, { recursive: true, force: true });

@@ -5,6 +5,7 @@
  */
 
 import { availableSystems, getSystemById, snapToHour, isTeamOrder } from "../core/index.js";
+import { resolveTeams } from "./teams.js";
 
 /**
  * Start (or restart) a watch. Resolves the watch system from the request (or
@@ -14,10 +15,11 @@ import { availableSystems, getSystemById, snapToHour, isTeamOrder } from "../cor
  * @param {object} store state store from createStateStore
  * @param {object} options plugin config
  * @param {{ systemId?: string, startAt?: number, teamOrder?: number[] }} [params]
+ * @param {object} [app] SignalK app handle, used to fall back to communication.crewNames
  * @returns {{ ok: true, state: object } | { ok: false, error: string }}
  */
-export function startWatch(store, options, params = {}) {
-  const teams = options.teams ?? [];
+export function startWatch(store, options, params = {}, app) {
+  const teams = resolveTeams(app, options);
   const systems = availableSystems(teams.length);
   const requestedId = params.systemId || options.defaultSystemId;
   const system = getSystemById(requestedId, systems);

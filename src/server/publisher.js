@@ -9,15 +9,17 @@
  */
 
 import { resolveSchedule, getSystemById, availableSystems, orderTeams } from "../core/index.js";
+import { resolveTeams } from "./teams.js";
 
 /**
  * Assemble the full watch view.
  * @param {WatchState} state
  * @param {object} options plugin config
  * @param {number} now epoch ms
+ * @param {object} [app] SignalK app handle, used to fall back to communication.crewNames
  */
-export function buildWatchData(state, options, now) {
-  const baseTeams = options.teams ?? [];
+export function buildWatchData(state, options, now, app) {
+  const baseTeams = resolveTeams(app, options);
   // Apply the chosen watch order so position 0 is first on watch. Both the
   // resolved schedule and the published `watch.teams` use this order, and the
   // webapp recomputes from the same order — they cannot disagree.

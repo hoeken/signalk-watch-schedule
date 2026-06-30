@@ -14,6 +14,7 @@
 import { availableSystems } from "../core/index.js";
 import { buildWatchData } from "./publisher.js";
 import { startWatch, stopWatch } from "./watch-control.js";
+import { resolveTeams } from "./teams.js";
 
 /** Is SignalK security turned on for this server? */
 function securityEnabled(app) {
@@ -50,13 +51,13 @@ export function registerRoutes(router, ctx) {
     const store = getStore();
     if (!store)
       return notReady(res);
-    res.json(buildWatchData(store.get(), getOptions(), Date.now()));
+    res.json(buildWatchData(store.get(), getOptions(), Date.now(), app));
   });
 
   router.get("/api/config", (req, res) => {
     const options = getOptions() || {};
     res.json({
-      teams: options.teams ?? [],
+      teams: resolveTeams(app, options),
       defaultSystemId: options.defaultSystemId ?? null,
       publishHorizon: options.publishHorizon ?? 8,
     });
@@ -64,7 +65,7 @@ export function registerRoutes(router, ctx) {
 
   router.get("/api/systems", (req, res) => {
     const options = getOptions() || {};
-    const teams = options.teams ?? [];
+    const teams = resolveTeams(app, options);
     res.json(availableSystems(teams.length));
   });
 
@@ -83,12 +84,12 @@ export function registerRoutes(router, ctx) {
       systemId: req.body && req.body.systemId,
       startAt: req.body && req.body.startAt,
       teamOrder: req.body && req.body.teamOrder,
-    });
+    }, app);
     if (!result.ok) {
       return res.status(400).json({ error: result.error });
     }
     publishNow();
-    res.json(buildWatchData(result.state, options, Date.now()));
+    res.json(buildWatchData(result.state, options, Date.now(), app));
   });
 
   router.post("/api/watch/stop", (req, res) => {
@@ -100,6 +101,6 @@ export function registerRoutes(router, ctx) {
 
     const newState = stopWatch(store);
     publishNow();
-    res.json(buildWatchData(newState, getOptions(), Date.now()));
+    res.json(buildWatchData(newState, getOptions(), Date.now(), app));
   });
 }

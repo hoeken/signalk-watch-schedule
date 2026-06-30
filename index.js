@@ -29,7 +29,7 @@ export default function (app) {
   const publishNow = () => {
     if (!store)
       return;
-    publish(app, plugin.id, buildWatchData(store.get(), options, Date.now()));
+    publish(app, plugin.id, buildWatchData(store.get(), options, Date.now(), app));
   };
 
   plugin.schema = () => ({
@@ -39,11 +39,8 @@ export default function (app) {
         type: "array",
         title: "Watch Teams",
         description:
-          "One entry per watch, in rotation order. Name it whatever you like — a watch name (e.g. Port Watch) or, if you prefer, the crew member(s) standing it (e.g. Alice & Bob).",
-        default: [
-          { name: "Watch 1" },
-          { name: "Watch 2" },
-        ],
+          "One entry per watch, in rotation order. Name it whatever you like — a watch name (e.g. Port Watch) or, if you prefer, the crew member(s) standing it (e.g. Alice & Bob). Leave empty to use the crew listed in communication.crewNames, or a generic Team 1/2/3 if no crew is published.",
+        default: [],
         items: {
           type: "object",
           required: ["name"],
@@ -90,6 +87,11 @@ export default function (app) {
     publishMeta(app, plugin.id);
     publishNow();
     timer = setInterval(publishNow, PUBLISH_INTERVAL_MS);
+    // The publish timer should never be the sole reason the process stays alive
+    // (the SignalK server has its own keep-alive); unref so it can't wedge a
+    // test runner or a shutting-down host.
+    if (typeof timer.unref === "function")
+      timer.unref();
     if (options.autoWatch)
       stopAutoWatch = startAutoWatch({ app, getOptions: () => options, getStore: () => store, publishNow });
     const s = store.get();
