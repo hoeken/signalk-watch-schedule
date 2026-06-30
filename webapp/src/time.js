@@ -41,10 +41,9 @@ export function formatDateTime(epochMs) {
   return `${WEEKDAYS_SHORT[d.getDay()]}, ${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}, ${formatClock(epochMs)}`;
 }
 
-/** "Monday\n14:00" — weekday on its own line above the clock, for shifts crossing day boundaries. */
-export function formatClockDay(epochMs) {
-  const d = new Date(epochMs);
-  return `${WEEKDAYS_LONG[d.getDay()]}\n${formatClock(epochMs)}`;
+/** "Monday" — full weekday name, shown under the clock for shifts crossing day boundaries. */
+export function formatWeekday(epochMs) {
+  return WEEKDAYS_LONG[new Date(epochMs).getDay()];
 }
 
 /** "4h", "3h 30m", "45m" from a minute count. */

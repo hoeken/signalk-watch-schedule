@@ -1,4 +1,4 @@
-import { formatClock, formatClockDay, formatDuration, untilLabel, agoLabel, hexToRgba } from "../time.js";
+import { formatClock, formatWeekday, formatDuration, untilLabel, agoLabel, hexToRgba } from "../time.js";
 
 /**
  * One shift in the schedule list. Each team has its own color; the active shift
@@ -8,7 +8,6 @@ import { formatClock, formatClockDay, formatDuration, untilLabel, agoLabel, hexT
  * back-dated start.
  */
 export default function ShiftCard({ shift, now, withDay }) {
-  const fmt = withDay ? formatClockDay : formatClock;
   const isCurrent = shift.isCurrent;
   const ended = !isCurrent && shift.endTime <= now;
   const startsIn = untilLabel(shift.startTime, now);
@@ -21,14 +20,15 @@ export default function ShiftCard({ shift, now, withDay }) {
   return (
     <li className={`shift${isCurrent ? " shift--current" : ""}`} style={style}>
       <div className="shift__time">
-        {fmt(shift.startTime)}
+        {formatClock(shift.startTime)}
+        {withDay ? <div className="shift__day">{formatWeekday(shift.startTime)}</div> : null}
       </div>
 
       <div className="shift__body">
         <div className="shift__team" style={{ color: shift.color }}>
           {shift.teamName}
-          {shift.label ? <span className="shift__label"> · {shift.label}</span> : null}
         </div>
+        {shift.label ? <div className="shift__label">{shift.label}</div> : null}
       </div>
 
       <div className="shift__meta">
