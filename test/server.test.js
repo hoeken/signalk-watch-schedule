@@ -380,6 +380,35 @@ test("with no configured teams, the API falls back to communication.crewNames", 
   fs.rmSync(app.dir, { recursive: true, force: true });
 });
 
+test("a watch whose team count no longer matches the config is stopped on start", async () => {
+  // Start a 4-team watch (hoekens-dog-watch) with 4 configured teams, then
+  // restart with only 2 teams. The persisted watch can no longer be scheduled,
+  // so reconciliation on start must stop it rather than leave the plugin in a
+  // state where every /start 400s.
+  const app = makeApp();
+  const fourTeams = { ...OPTIONS, teams: [{ name: "A" }, { name: "B" }, { name: "C" }, { name: "D" }] };
+
+  const plugin = createPlugin(app);
+  plugin.start(fourTeams);
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+  const startRes = makeRes();
+  await router.routes["post /api/watch/start"]({ body: { systemId: "hoekens-dog-watch" } }, startRes);
+  assert.equal(startRes.statusCode, 200);
+  assert.equal(startRes.body.state.onWatch, true);
+  plugin.stop();
+
+  // Restart with two teams: the 4-team watch is now invalid and gets stopped.
+  const reloaded = createPlugin(app);
+  reloaded.start(OPTIONS); // 2 teams
+  const reloadedRouter = makeRouter();
+  reloaded.registerWithRouter(reloadedRouter);
+  assert.equal((await readState(reloadedRouter)).onWatch, false, "stale watch stopped on start");
+
+  reloaded.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
 test("start rejects an unavailable system", async () => {
   const app = makeApp();
   const plugin = createPlugin(app);

@@ -46,12 +46,17 @@ export default function App() {
     };
   }, [refresh]);
 
-  // Default the picker to the active system (or first available) once loaded.
+  // Default the picker to the active system (or first available) once loaded,
+  // and keep the selection valid. A team-count change can drop the active
+  // rotation from the available systems; selecting an id that isn't offered
+  // would make /start 400, so fall back to a valid one rather than leave it.
   useEffect(() => {
-    if (selectedSystemId)
+    const valid = (id) => id != null && systems.some((s) => s.id === id);
+    if (valid(selectedSystemId))
       return;
-    const fallback = view?.state?.systemId || systems[0]?.id || null;
-    if (fallback)
+    const stateId = view?.state?.systemId;
+    const fallback = (valid(stateId) ? stateId : systems[0]?.id) || null;
+    if (fallback !== selectedSystemId)
       setSelectedSystemId(fallback);
   }, [view, systems, selectedSystemId]);
 

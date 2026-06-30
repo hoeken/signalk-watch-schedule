@@ -11,6 +11,7 @@ import { createStateStore } from "./src/server/state.js";
 import { buildWatchData, publish, publishMeta } from "./src/server/publisher.js";
 import { registerRoutes } from "./src/server/api.js";
 import { startAutoWatch } from "./src/server/auto-watch.js";
+import { reconcileWatch } from "./src/server/watch-control.js";
 
 const PUBLISH_INTERVAL_MS = 30_000;
 
@@ -121,6 +122,12 @@ export default function (app) {
   plugin.start = (opts) => {
     options = opts || {};
     store = createStateStore(app);
+    // A watch persisted from a previous run may no longer match the current
+    // config (e.g. the team count changed while we were stopped). Stop such a
+    // stale watch on start so the UI and /start agree on the available systems.
+    const reconciled = reconcileWatch(store, options, app);
+    if (reconciled.stopped && typeof app.debug === "function")
+      app.debug(`stopped stale watch on start — ${reconciled.reason}`);
     publishMeta(app, plugin.id);
     publishNow();
     timer = setInterval(publishNow, PUBLISH_INTERVAL_MS);

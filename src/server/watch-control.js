@@ -42,3 +42,40 @@ export function startWatch(store, options, params = {}, app) {
 export function stopWatch(store) {
   return store.set({ onWatch: false, startedAt: null, teamOrder: null });
 }
+
+/**
+ * Reconcile a persisted watch against the current config on startup.
+ *
+ * The crew — and therefore the team count — can change while the plugin is
+ * stopped (a team added/removed, or communication.crewNames changing under the
+ * crewNames fallback). An active watch whose system needs a different number of
+ * teams than we now have can't be scheduled or restarted, so the schedule and
+ * the start picker disagree and every /start request 400s. When that happens we
+ * stop the watch to fall back to a clean idle state the operator can restart
+ * from.
+ *
+ * @param {object} store state store from createStateStore
+ * @param {object} options plugin config
+ * @param {object} [app] SignalK app handle, used to resolve crewNames teams
+ * @returns {{ stopped: boolean, reason?: string }}
+ */
+export function reconcileWatch(store, options, app) {
+  const state = store.get();
+  if (!state.onWatch)
+    return { stopped: false };
+
+  const teams = resolveTeams(app, options);
+  const system = getSystemById(state.systemId);
+  if (!system) {
+    stopWatch(store);
+    return { stopped: true, reason: `unknown watch system "${state.systemId}"` };
+  }
+  if (system.teamCount !== teams.length) {
+    stopWatch(store);
+    return {
+      stopped: true,
+      reason: `system "${system.id}" needs ${system.teamCount} teams but ${teams.length} are configured`,
+    };
+  }
+  return { stopped: false };
+}
