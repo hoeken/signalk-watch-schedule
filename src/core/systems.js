@@ -101,15 +101,15 @@ const RN_DAY = [
  * dog watches at 15:00 and 16:30, then 18:00 and 21:00.
  */
 const HOEKEN_DAY = [
-  { duration: 3 * H },
-  { duration: 3 * H },
-  { duration: 3 * H },
-  { duration: 3 * H },
-  { duration: 3 * H },
-  { duration: 1.5 * H, label: "First Dog" },
-  { duration: 1.5 * H, label: "Last Dog" },
-  { duration: 3 * H },
-  { duration: 3 * H },
+  { duration: 3 * H, label: "Graveyard Shift" },
+  { duration: 3 * H, label: "Dawn Patrol" },
+  { duration: 3 * H, label: "Breakfast" },
+  { duration: 3 * H, label: "Morning Shift" },
+  { duration: 3 * H, label: "Lunch" },
+  { duration: 1.5 * H, label: "Up Dog" },
+  { duration: 1.5 * H, label: "Down Dog" },
+  { duration: 3 * H, label: "Dinner" },
+  { duration: 3 * H, label: "Night Shift" },
 ];
 
 /** @type {WatchSystem[]} */
