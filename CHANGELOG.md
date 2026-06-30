@@ -1,3 +1,13 @@
+# v0.2.2
+
+## ✨ Improvements
+
+- 🐕 Hoeken's Dog Watch now names every shift — "Graveyard Shift", "Dawn Patrol", "Up Dog", "Down Dog", "Dinner" and friends — so the rotation reads at a glance
+
+## 🎨 Webapp
+
+- 🗂️ The schedule list is now split around the on-duty watch under "Past Watches", "Current Watch", and "Upcoming Watches" headings (pending and preview watches all group under "Upcoming Watches")
+
 # v0.2.1
 
 ## ✨ Improvements
