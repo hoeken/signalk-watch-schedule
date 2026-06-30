@@ -67,6 +67,8 @@ export function startAutoWatch(ctx) {
     const options = getOptions() || {};
 
     if (group === "underway") {
+      if (!options.enableAutoWatchStart)
+        return;
       // Don't clobber a watch already in progress (e.g. started manually).
       if (store.get().onWatch)
         return;
@@ -81,6 +83,8 @@ export function startAutoWatch(ctx) {
       publishNow();
     } else {
       // group === "rest"
+      if (!options.enableAutoWatchStop)
+        return;
       if (!store.get().onWatch)
         return;
       stopWatch(store);

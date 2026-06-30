@@ -127,11 +127,18 @@ export default function (app) {
         default: 8,
         minimum: 1,
       },
-      autoWatch: {
+      enableAutoWatchStart: {
         type: "boolean",
-        title: "Automatic watch start/stop",
+        title: "Automatically start a watch under way",
         description:
-          "Automatically start a watch (using the default system, teams, and rounding) when the boat gets under way — navigation.state becomes sailing or motoring — and stop it when at rest — moored or anchored.",
+          "Automatically start a watch (using the default system, teams, and rounding) when the boat gets under way — navigation.state becomes sailing or motoring.",
+        default: false,
+      },
+      enableAutoWatchStop: {
+        type: "boolean",
+        title: "Automatically stop the watch at rest",
+        description:
+          "Automatically stop the watch when the boat comes to rest — navigation.state becomes moored or anchored.",
         default: false,
       },
     },
@@ -154,7 +161,7 @@ export default function (app) {
     // test runner or a shutting-down host.
     if (typeof timer.unref === "function")
       timer.unref();
-    if (options.autoWatch)
+    if (options.enableAutoWatchStart || options.enableAutoWatchStop)
       unsubscribeAutoWatch = startAutoWatch({ app, getOptions: () => options, getStore: () => store, publishNow });
   };
 

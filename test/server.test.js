@@ -275,7 +275,7 @@ test("stop clears the team order", async () => {
 
 // --- navigation.state auto-watch ---
 
-const AUTO_OPTIONS = { ...OPTIONS, autoWatch: true };
+const AUTO_OPTIONS = { ...OPTIONS, enableAutoWatchStart: true, enableAutoWatchStop: true };
 
 async function readState(router) {
   const res = makeRes();
@@ -365,13 +365,54 @@ test("auto-watch does not clobber a watch already in progress", async () => {
 test("auto-watch is disabled by default", async () => {
   const app = makeApp();
   const plugin = createPlugin(app);
-  plugin.start(OPTIONS); // no autoWatch flag
+  plugin.start(OPTIONS); // neither enableAutoWatchStart nor enableAutoWatchStop
   const router = makeRouter();
   plugin.registerWithRouter(router);
 
   app.navState("anchored");
   app.navState("sailing");
   assert.equal((await readState(router)).onWatch, false, "no subscription when disabled");
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("enableAutoWatchStart only: starts under way but does not auto-stop", async () => {
+  const app = makeApp();
+  const plugin = createPlugin(app);
+  plugin.start({ ...OPTIONS, enableAutoWatchStart: true });
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  app.navState("anchored");       // baseline
+  app.navState("sailing");        // rest → under way: start
+  assert.equal((await readState(router)).onWatch, true, "got under way → watch started");
+
+  app.navState("moored");         // under way → rest: stop is disabled
+  assert.equal((await readState(router)).onWatch, true, "watch keeps running when auto-stop is off");
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("enableAutoWatchStop only: stops at rest but does not auto-start", async () => {
+  const app = makeApp();
+  const plugin = createPlugin(app);
+  plugin.start({ ...OPTIONS, enableAutoWatchStop: true });
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  app.navState("anchored");       // baseline
+  app.navState("sailing");        // rest → under way: start is disabled
+  assert.equal((await readState(router)).onWatch, false, "watch stays off when auto-start is off");
+
+  // Start manually, then coming to rest should auto-stop.
+  const startRes = makeRes();
+  await router.routes["post /api/watch/start"]({ body: {} }, startRes);
+  assert.equal((await readState(router)).onWatch, true, "manual start");
+
+  app.navState("moored");         // under way → rest: stop
+  assert.equal((await readState(router)).onWatch, false, "came to rest → watch stopped");
 
   plugin.stop();
   fs.rmSync(app.dir, { recursive: true, force: true });
