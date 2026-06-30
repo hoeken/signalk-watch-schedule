@@ -59,7 +59,9 @@ export default function (app) {
   let options = {};
   let store = null;
   let timer = null;
-  let stopAutoWatch = null;
+  // Unsubscribe handle for the navigation.state listener (auto-watch). This tears
+  // down the subscription only — the watch itself is persisted and survives stop.
+  let unsubscribeAutoWatch = null;
 
   const publishNow = () => {
     if (!store)
@@ -137,7 +139,7 @@ export default function (app) {
     if (typeof timer.unref === "function")
       timer.unref();
     if (options.autoWatch)
-      stopAutoWatch = startAutoWatch({ app, getOptions: () => options, getStore: () => store, publishNow });
+      unsubscribeAutoWatch = startAutoWatch({ app, getOptions: () => options, getStore: () => store, publishNow });
     const s = store.get();
     app.setPluginStatus(s.onWatch ? `On watch (${s.systemId})` : "Idle — no watch in progress");
   };
@@ -146,9 +148,9 @@ export default function (app) {
     if (timer)
       clearInterval(timer);
     timer = null;
-    if (stopAutoWatch)
-      stopAutoWatch();
-    stopAutoWatch = null;
+    if (unsubscribeAutoWatch)
+      unsubscribeAutoWatch();
+    unsubscribeAutoWatch = null;
     store = null;
   };
 
