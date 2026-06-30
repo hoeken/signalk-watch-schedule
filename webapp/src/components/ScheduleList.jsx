@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { formatDateTime, untilLabel } from "../time.js";
 import ShiftCard from "./ShiftCard.jsx";
 
@@ -8,6 +9,26 @@ import ShiftCard from "./ShiftCard.jsx";
  * shift, so it's truer than that shift's own start time.
  */
 export default function ScheduleList({ shifts, now, preview, startsAt }) {
+  // Clicking a shift card highlights its team and dims the rest. Clicking the
+  // same team again, or anywhere outside a card, clears the highlight.
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  const toggleTeam = (teamName) =>
+    setSelectedTeam((cur) => (cur === teamName ? null : teamName));
+
+  // While a team is highlighted, a click outside any shift card cancels it.
+  // Card clicks are handled by the cards (and skipped here via the `.shift`
+  // ancestor check) so selecting one doesn't immediately clear it.
+  useEffect(() => {
+    if (!selectedTeam)
+      return undefined;
+    const onDocClick = (e) => {
+      if (!e.target.closest(".shift"))
+        setSelectedTeam(null);
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, [selectedTeam]);
+
   if (!shifts.length) {
     return <div className="empty">No watch in progress.</div>;
   }
@@ -36,7 +57,14 @@ export default function ScheduleList({ shifts, now, preview, startsAt }) {
   const list = (segment) => (
     <ul className="schedule">
       {segment.map((s) => (
-        <ShiftCard key={s.startTime} shift={s} now={now} withDay={withDay} />
+        <ShiftCard
+          key={s.startTime}
+          shift={s}
+          now={now}
+          withDay={withDay}
+          selectedTeam={selectedTeam}
+          onSelect={toggleTeam}
+        />
       ))}
     </ul>
   );

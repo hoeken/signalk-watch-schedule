@@ -262,9 +262,16 @@ textarea {
   border-left: 5px solid var(--muted);
   border-radius: 10px;
   padding: 12px 14px;
+  cursor: pointer;
   transition:
     transform 0.15s ease,
-    background 0.2s ease;
+    background 0.2s ease,
+    opacity 0.2s ease;
+}
+
+/* Dimmed when another team's card is selected — see ScheduleList's selection. */
+.shift--dimmed {
+  opacity: 0.3;
 }
 
 .shift--current {

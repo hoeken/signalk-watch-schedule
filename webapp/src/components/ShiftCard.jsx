@@ -7,18 +7,24 @@ import { formatClock, formatWeekday, formatDuration, untilLabel, agoLabel, hexTo
  * elapsed ones count up ("ended 1h ago") — the latter shows up when previewing a
  * back-dated start.
  */
-export default function ShiftCard({ shift, now, withDay }) {
+export default function ShiftCard({ shift, now, withDay, selectedTeam, onSelect }) {
   const isCurrent = shift.isCurrent;
   const ended = !isCurrent && shift.endTime <= now;
   const startsIn = untilLabel(shift.startTime, now);
   const endedAgo = agoLabel(shift.endTime, now);
+  // When a team is selected, cards for other teams are dimmed to highlight it.
+  const dimmed = selectedTeam != null && shift.teamName !== selectedTeam;
   const style = {
     borderLeftColor: shift.color,
     background: isCurrent ? hexToRgba(shift.color, 0.16) : undefined,
   };
 
   return (
-    <li className={`shift${isCurrent ? " shift--current" : ""}`} style={style}>
+    <li
+      className={`shift${isCurrent ? " shift--current" : ""}${dimmed ? " shift--dimmed" : ""}`}
+      style={style}
+      onClick={() => onSelect(shift.teamName)}
+    >
       <div className="shift__time">
         {formatClock(shift.startTime)}
         {withDay ? <div className="shift__day">{formatWeekday(shift.startTime)}</div> : null}
