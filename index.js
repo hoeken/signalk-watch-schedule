@@ -10,6 +10,7 @@ import { BUILTIN_SYSTEMS } from "./src/core/index.js";
 import { createStateStore } from "./src/server/state.js";
 import { buildWatchData, publish, publishMeta } from "./src/server/publisher.js";
 import { registerRoutes } from "./src/server/api.js";
+import { startAutoWatch } from "./src/server/auto-watch.js";
 
 const PUBLISH_INTERVAL_MS = 30_000;
 
@@ -23,6 +24,7 @@ export default function (app) {
   let options = {};
   let store = null;
   let timer = null;
+  let stopAutoWatch = null;
 
   const publishNow = () => {
     if (!store)
@@ -72,6 +74,13 @@ export default function (app) {
         default: 8,
         minimum: 1,
       },
+      autoWatch: {
+        type: "boolean",
+        title: "Automatic watch start/stop",
+        description:
+          "Automatically start a watch (using the default system, teams, and rounding) when the boat gets under way — navigation.state becomes sailing or motoring — and stop it when at rest — moored or anchored.",
+        default: false,
+      },
     },
   });
 
@@ -81,6 +90,8 @@ export default function (app) {
     publishMeta(app, plugin.id);
     publishNow();
     timer = setInterval(publishNow, PUBLISH_INTERVAL_MS);
+    if (options.autoWatch)
+      stopAutoWatch = startAutoWatch({ app, getOptions: () => options, getStore: () => store, publishNow });
     const s = store.get();
     app.setPluginStatus(s.onWatch ? `On watch (${s.systemId})` : "Idle — no watch in progress");
   };
@@ -89,6 +100,9 @@ export default function (app) {
     if (timer)
       clearInterval(timer);
     timer = null;
+    if (stopAutoWatch)
+      stopAutoWatch();
+    stopAutoWatch = null;
     store = null;
   };
 

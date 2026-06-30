@@ -1,6 +1,7 @@
 # 0.3.0
 
 * add a server side config option to "Enable automatic watch starting and stopping based on navigation.state
+  * default false (disabled)
   * if this is enabled:
     * subscribe to the navigation.state topic
       * if state transitions from moored|anchored -> sailing|motoring, then start a watch schedule using our default system, teams, and time rounding
@@ -11,3 +12,5 @@
   * change our team config default to an empty array
   * if our config teams array is empty, fall back to using communication.crewNames
   * if communication.crewNames is empty, fall back to using ["Team 1", "Team 2", "Team 3"]
+
+* add the path checker from hoekens-anchor-alarm for checking communication.crewNames and navigation.state

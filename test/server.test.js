@@ -60,14 +60,25 @@ test("buildWatchData applies teamOrder to the schedule and published teams", () 
 function makeApp() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ws-test-"));
   const deltas = [];
+  // Minimal Bacon-like stream: tests push navigation.state values via navState.
+  let stateCb = null;
   return {
     dir,
     deltas,
+    navState: (v) => stateCb && stateCb(v),
     getDataDirPath: () => dir,
     handleMessage: (_id, delta) => deltas.push(delta),
     setPluginStatus: () => {},
     error: () => {},
     debug: () => {},
+    streambundle: {
+      getSelfStream: () => ({
+        onValue: (cb) => {
+          stateCb = cb;
+          return () => { stateCb = null; };
+        },
+      }),
+    },
     // no securityStrategy → security disabled → writes allowed
   };
 }
@@ -197,6 +208,110 @@ test("stop clears the team order", async () => {
   await router.routes["post /api/watch/stop"]({ body: {} }, stopRes);
   assert.equal(stopRes.body.state.teamOrder, null);
   assert.equal(stopRes.body.teams[0].name, "Port", "back to natural order off watch");
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+// --- navigation.state auto-watch ---
+
+const AUTO_OPTIONS = { ...OPTIONS, autoWatch: true };
+
+async function readState(router) {
+  const res = makeRes();
+  await router.routes["get /api/state"]({}, res);
+  return res.body.state;
+}
+
+test("auto-watch starts under way and stops at rest, ignoring in-group changes", async () => {
+  const app = makeApp();
+  const plugin = createPlugin(app);
+  plugin.start(AUTO_OPTIONS);
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  // First value only establishes a baseline — no auto-start.
+  app.navState("anchored");
+  assert.equal((await readState(router)).onWatch, false, "baseline does not start");
+
+  // anchored (rest) → sailing (under way): start.
+  app.navState("sailing");
+  let state = await readState(router);
+  assert.equal(state.onWatch, true, "got under way → watch started");
+  assert.equal(state.systemId, "fixed-4-4", "uses the default system");
+  assert.equal(new Date(state.startedAt).getMinutes(), 0, "start snapped to the hour");
+
+  // sailing → motoring: within the under-way group, ignored (watch unchanged).
+  const startedAt = state.startedAt;
+  app.navState("motoring");
+  state = await readState(router);
+  assert.equal(state.onWatch, true, "sailing↔motoring leaves the watch running");
+  assert.equal(state.startedAt, startedAt, "watch is not restarted");
+
+  // motoring (under way) → moored (rest): stop.
+  app.navState("moored");
+  state = await readState(router);
+  assert.equal(state.onWatch, false, "at rest → watch stopped");
+
+  // moored → anchored: within the rest group, ignored (stays stopped).
+  app.navState("anchored");
+  assert.equal((await readState(router)).onWatch, false, "moored↔anchored stays stopped");
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("auto-watch ignores untracked states without disturbing the baseline", async () => {
+  const app = makeApp();
+  const plugin = createPlugin(app);
+  plugin.start(AUTO_OPTIONS);
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  app.navState("anchored");       // baseline: at rest
+  app.navState("aground");        // untracked → ignored, baseline unchanged
+  assert.equal((await readState(router)).onWatch, false);
+
+  app.navState("sailing");        // rest → under way (across the ignored value)
+  assert.equal((await readState(router)).onWatch, true, "transition still detected");
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("auto-watch does not clobber a watch already in progress", async () => {
+  const app = makeApp();
+  const plugin = createPlugin(app);
+  plugin.start(AUTO_OPTIONS);
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  // Start manually with a non-default system, while at rest.
+  app.navState("anchored");
+  const startRes = makeRes();
+  await router.routes["post /api/watch/start"]({ body: { systemId: "fixed-3-3" } }, startRes);
+  assert.equal(startRes.body.state.systemId, "fixed-3-3");
+
+  // Getting under way must not reset the in-progress watch to the default.
+  app.navState("sailing");
+  const state = await readState(router);
+  assert.equal(state.onWatch, true);
+  assert.equal(state.systemId, "fixed-3-3", "manual system preserved");
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("auto-watch is disabled by default", async () => {
+  const app = makeApp();
+  const plugin = createPlugin(app);
+  plugin.start(OPTIONS); // no autoWatch flag
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  app.navState("anchored");
+  app.navState("sailing");
+  assert.equal((await readState(router)).onWatch, false, "no subscription when disabled");
 
   plugin.stop();
   fs.rmSync(app.dir, { recursive: true, force: true });
