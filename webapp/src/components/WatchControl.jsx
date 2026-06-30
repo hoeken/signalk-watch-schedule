@@ -31,6 +31,7 @@ export default function WatchControl({
       <div className="control">
         <div className="control__active">
           Running <strong>{system?.name ?? "watch"}</strong>
+          {system?.description ? <div className="muted" style={{ marginBottom: "0.5rem" }}>{system.description}</div> : null}
           {startedAt ? (
             <div className="muted">
               {future ? "Starts" : "Started"} on {formatDateTime(startedAt)}
@@ -45,6 +46,7 @@ export default function WatchControl({
   }
 
   const canStart = systems.length > 0;
+  const selectedSystem = systems.find((s) => s.id === selectedSystemId);
 
   return (
     <div className="control">
@@ -71,6 +73,7 @@ export default function WatchControl({
             </option>
           ))}
         </select>
+        {selectedSystem?.description ? <div className="muted">{selectedSystem.description}</div> : null}
       </label>
 
       <label className="control__field">
