@@ -55,7 +55,6 @@
  * resolveSchedule(); never persisted.
  * @typedef {Object} ResolvedShift
  * @property {number} teamIndex
- * @property {string} teamId       Derived from position, e.g. "team1" for teamIndex 0.
  * @property {string} teamName
  * @property {number} startTime    Epoch ms.
  * @property {number} endTime      Epoch ms.

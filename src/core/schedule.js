@@ -248,7 +248,6 @@ export function resolveSchedule(system, teams, startedAt, now, opts = {}) {
     const team = teams[teamIndex];
     shifts.push({
       teamIndex,
-      teamId: `team${teamIndex + 1}`,
       teamName: team?.name ?? `Team ${teamIndex + 1}`,
       startTime,
       endTime,

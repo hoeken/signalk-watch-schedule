@@ -64,7 +64,7 @@ signalk-watch-schedule/
 ```js
 /**
  * A watch TEAM = a named group of crew. Teams are ordered; rotations reference them by
- * index, and their position in the array is their stable key (teamId "team1" = index 0).
+ * index, and their position in the array is their stable key (index 0 = first on watch).
  * @typedef {Object} WatchTeam
  * @property {string} name      - display name, e.g. "Port Watch" / "Alice & Bob"
  * @property {string[]} crew    - crew member names assigned to this team
@@ -95,7 +95,6 @@ signalk-watch-schedule/
  * A concrete, resolved shift with absolute times — produced at runtime, never stored.
  * @typedef {Object} ResolvedShift
  * @property {number} teamIndex
- * @property {string} teamId
  * @property {string} teamName
  * @property {string[]} crew
  * @property {number} startTime   - epoch ms
