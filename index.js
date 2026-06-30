@@ -70,23 +70,19 @@ export default function (app) {
     type: "object",
     properties: {
       pathChecks: {
-        type: "object",
         title: "Path Checks",
-        description:
-          "Read-only status of the SignalK paths this plugin can use. ✅ present, ❌ missing.",
+        type: "object",
         properties: buildPathChecks(app),
       },
       teams: {
         type: "array",
         title: "Watch Teams",
-        description:
-          "One entry per watch, in rotation order. Name it whatever you like — a watch name (e.g. Port Watch) or, if you prefer, the crew member(s) standing it (e.g. Alice & Bob). Leave empty to use the crew listed in communication.crewNames, or a generic Team 1/2/3 if no crew is published.",
         default: [],
         items: {
           type: "object",
           required: ["name"],
           properties: {
-            name: { type: "string", title: "Name", description: "e.g. Port Watch, or a crew member's name" },
+            name: { type: "string", title: "Name", description: "e.g. Crew member or Team name" },
           },
         },
       },
