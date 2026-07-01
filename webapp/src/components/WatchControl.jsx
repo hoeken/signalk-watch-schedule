@@ -31,7 +31,7 @@ export default function WatchControl({
       <div className="control">
         <div className="control__active">
           Running <strong>{system?.name ?? "watch"}</strong>
-          {system?.description ? <div className="muted" style={{ marginBottom: "0.5rem" }}>{system.description}</div> : null}
+          {system?.description ? <div className="muted" style={{ marginBottom: "0.5rem", marginTop: "0.5rem" }}>{system.description}</div> : null}
           {startedAt ? (
             <div className="muted">
               {future ? "Starts" : "Started"} on {formatDateTime(startedAt)}
