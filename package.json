@@ -46,7 +46,7 @@
       "signalk-dead-mans-switch",
       "@meri-imperiumi/signalk-autostate",
       "@meri-imperiumi/signalk-logbook",
-      "signalk-einklabel-plugin"
+      "@rhizomatics/signalk-einklabel-plugin"
     ]
   },
   "author": "Zach Hoeken",
