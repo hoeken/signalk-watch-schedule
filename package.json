@@ -1,6 +1,6 @@
 {
   "name": "signalk-watch-schedule",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Crew watch schedule for offshore and overnight sailing",
   "type": "module",
   "main": "index.js",

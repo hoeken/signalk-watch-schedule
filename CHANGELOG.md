@@ -1,13 +1,21 @@
-# Unreleased
+# v1.1.0
 
 ## ✨ Improvements
 
+- Custom watch systems: define your own rotations in the plugin config (name, optional description, and a schedule JSON). Valid entries behave exactly like the built-ins — offered in the picker, startable, published under `watch.*`, and reconciled across restarts — while broken entries are skipped and reported in the server log so they can never take the built-ins down. The README documents the format and includes a ready-made AI prompt for generating one
+- Per-watch team editing (#4): the configured teams are now defaults — add, remove, rename, and reorder teams in the web UI before starting a watch, and those edits apply to that watch only. Custom-team watches survive a server restart even if the config changed
 - Optional [signalk-dead-mans-switch](https://www.npmjs.com/package/signalk-dead-mans-switch) integration (#5): when enabled, the dead man's switch is armed whenever a watch starts (manual, API, or automatic) and disarmed when the watch stops — so overnight check-ins run exactly while someone is supposed to be on watch. Off by default
 - On security-enabled servers the integration authenticates itself: the plugin submits a SignalK access request on startup, and once you approve it (Security → Access Requests) the granted token is saved into the plugin config automatically
+- The REST API is now documented (#3): a machine-readable OpenAPI 3.0 spec appears in the SignalK admin UI under Documentation → OpenAPI, and the README's REST API section has request details and curl examples, including authentication
+- Recommends [signalk-einklabel-plugin](https://www.npmjs.com/package/signalk-einklabel-plugin) from the SignalK app store, which now supports displaying the watch schedule on an e-ink label (#6)
 
 ## 🎨 Webapp
 
+- Full team editor on the start screen: rename, add/remove (2–5 teams), and drag/▲▼ reorder, seeded from the server defaults with a reset link. Edits persist in localStorage so stopping a watch to tweak something brings the same custom teams back
 - While a watch is running with the integration enabled, the dead man's switch check-in panel is embedded below the controls, so the crew can acknowledge without leaving the schedule
+- Team colors now lead with red (port) and green (starboard) for a nautical theme (#2)
+- The Default Watch System dropdown lists every system — including customs — as "[X Teams] Name", grouped by team count
+- Fixed styling when the webapp is embedded in an iframe
 
 # v1.0.0
 
