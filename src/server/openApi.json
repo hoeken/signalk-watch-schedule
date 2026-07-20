@@ -1,0 +1,460 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Watch Schedule API",
+    "version": "1.0.0",
+    "description": "HTTP API for reading the crew watch schedule and starting/stopping the watch managed by the signalk-watch-schedule plugin.",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0"
+    }
+  },
+  "servers": [
+    {
+      "url": "/plugins/signalk-watch-schedule/api"
+    }
+  ],
+  "tags": [
+    {
+      "name": "watch",
+      "description": "Start and stop the watch"
+    },
+    {
+      "name": "state",
+      "description": "Current watch state and resolved schedule"
+    },
+    {
+      "name": "config",
+      "description": "Teams, defaults, and available watch systems"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "WatchState": {
+        "type": "object",
+        "description": "The plugin's authoritative runtime state. Everything else (system, schedule, current/next shift) is derived from this plus the plugin configuration.",
+        "required": ["onWatch", "startedAt", "systemId", "teamOrder"],
+        "properties": {
+          "onWatch": {
+            "type": "boolean",
+            "description": "Whether the boat is currently standing watches."
+          },
+          "startedAt": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Epoch milliseconds the current watch began, always snapped to a whole local clock hour. Null when no watch is running."
+          },
+          "systemId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Id of the active watch rotation system (e.g. `fixed-4-4`). Null when no watch is running."
+          },
+          "teamOrder": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "Permutation of the configured teams' indices chosen for this watch — the team at position 0 is first on watch. Null means the natural configuration order."
+          }
+        }
+      },
+      "WatchTeam": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Team or crew member name, e.g. \"Port Watch\"."
+          }
+        }
+      },
+      "WatchSegment": {
+        "type": "object",
+        "required": ["offset", "duration", "teamIndex"],
+        "properties": {
+          "offset": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Start of the segment in minutes from the cycle anchor (the watch start, or local midnight for clock-anchored systems)."
+          },
+          "duration": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Length of the segment in minutes."
+          },
+          "teamIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "0-based index into the ordered team list of the team standing this segment."
+          },
+          "label": {
+            "type": "string",
+            "description": "Traditional watch name (e.g. \"First Dog\"). Only present on systems that define labels."
+          }
+        }
+      },
+      "WatchSystem": {
+        "type": "object",
+        "description": "A time-agnostic rotation definition: segments as minute offsets and durations, repeated every cycleDuration minutes.",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "teamCount",
+          "cycleDuration",
+          "segments"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable system id, e.g. `fixed-4-4` or `rn-dog-watches`."
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "teamCount": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Exact number of teams this rotation requires."
+          },
+          "cycleDuration": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Length of one full rotation cycle in minutes."
+          },
+          "anchored": {
+            "type": "boolean",
+            "description": "True when segment offsets are read from local midnight (watches land on fixed clock hours) rather than from the watch start."
+          },
+          "builtin": {
+            "type": "boolean"
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WatchSegment"
+            }
+          }
+        }
+      },
+      "ResolvedShift": {
+        "type": "object",
+        "description": "A concrete shift: a system segment resolved to absolute times and an actual team.",
+        "required": [
+          "teamIndex",
+          "teamName",
+          "startTime",
+          "endTime",
+          "durationMin",
+          "color",
+          "isCurrent",
+          "cycleIndex"
+        ],
+        "properties": {
+          "teamIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "0-based index into the ordered team list."
+          },
+          "teamName": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Shift start, epoch milliseconds."
+          },
+          "endTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Shift end, epoch milliseconds."
+          },
+          "durationMin": {
+            "type": "number",
+            "description": "Shift length in minutes."
+          },
+          "color": {
+            "type": "string",
+            "description": "Stable hex color assigned to the team, e.g. `#dc2626`."
+          },
+          "label": {
+            "type": "string",
+            "description": "Traditional watch name, when the system defines one."
+          },
+          "isCurrent": {
+            "type": "boolean",
+            "description": "True for the shift on duty right now."
+          },
+          "cycleIndex": {
+            "type": "integer",
+            "description": "How many full rotation cycles have elapsed at this shift."
+          }
+        }
+      },
+      "WatchData": {
+        "type": "object",
+        "description": "The full watch view — the same data the plugin publishes under the SignalK `watch.*` paths. When no watch is running, `system`, `current`, and `next` are null and `schedule` is empty.",
+        "required": ["state", "system", "teams", "current", "next", "schedule"],
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/WatchState"
+          },
+          "system": {
+            "allOf": [{ "$ref": "#/components/schemas/WatchSystem" }],
+            "nullable": true,
+            "description": "The active watch system, or null when idle."
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WatchTeam"
+            },
+            "description": "Effective teams in watch order (the per-watch teamOrder already applied): position 0 is first on watch."
+          },
+          "current": {
+            "allOf": [{ "$ref": "#/components/schemas/ResolvedShift" }],
+            "nullable": true,
+            "description": "The shift on duty right now, or null."
+          },
+          "next": {
+            "allOf": [{ "$ref": "#/components/schemas/ResolvedShift" }],
+            "nullable": true,
+            "description": "The next shift coming on duty, or null."
+          },
+          "schedule": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResolvedShift"
+            },
+            "description": "Ordered upcoming shifts, starting with the current one. Length is the configured publish horizon."
+          }
+        }
+      },
+      "Config": {
+        "type": "object",
+        "required": ["teams", "defaultSystemId", "publishHorizon"],
+        "properties": {
+          "teams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WatchTeam"
+            },
+            "description": "Effective teams in configuration order, after the config → communication.crewNames → default fallback."
+          },
+          "defaultSystemId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Rotation pre-selected when starting a watch without an explicit systemId."
+          },
+          "publishHorizon": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "How many upcoming shifts are published and returned in `schedule`."
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "responses": {
+      "WatchData": {
+        "description": "The full watch view.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/WatchData"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Server security is enabled and the request carries no authenticated SignalK user.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "login required"
+            }
+          }
+        }
+      },
+      "NotReady": {
+        "description": "The plugin is not started.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "plugin not started"
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/state": {
+      "get": {
+        "tags": ["state"],
+        "summary": "Get the current watch state and resolved schedule",
+        "description": "Returns the authoritative state plus everything derived from it: the active system, the ordered teams, the current and next shift, and the upcoming schedule. This is the same view published under the SignalK `watch.*` paths.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/WatchData"
+          },
+          "503": {
+            "$ref": "#/components/responses/NotReady"
+          }
+        }
+      }
+    },
+    "/config": {
+      "get": {
+        "tags": ["config"],
+        "summary": "Get teams and defaults",
+        "description": "Returns the effective watch teams and the UI-relevant plugin defaults.",
+        "responses": {
+          "200": {
+            "description": "Configuration returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Config"
+                },
+                "example": {
+                  "teams": [
+                    { "name": "Port Watch" },
+                    { "name": "Starboard Watch" }
+                  ],
+                  "defaultSystemId": "fixed-4-4",
+                  "publishHorizon": 8
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/systems": {
+      "get": {
+        "tags": ["config"],
+        "summary": "List available watch systems",
+        "description": "Returns the built-in rotation systems that require exactly the number of teams currently configured. Only these ids are accepted by `/watch/start`.",
+        "responses": {
+          "200": {
+            "description": "Available systems returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WatchSystem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/watch/start": {
+      "post": {
+        "tags": ["watch"],
+        "summary": "Start (or restart) the watch",
+        "description": "Starts a watch with the requested rotation system. The start time is snapped to a whole local clock hour using the configured rounding mode and defaults to now; a team order may be supplied to pick who is first on watch. Calling this while a watch is already running restarts it with the new parameters. Requires authentication when server security is enabled.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "systemId": {
+                    "type": "string",
+                    "description": "Id of the watch system to run (see GET /systems). Defaults to the configured default system."
+                  },
+                  "startAt": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "Requested start time, epoch milliseconds — snapped to a whole local clock hour. May be in the past (to sync a watch that already began) or the future. Defaults to now."
+                  },
+                  "teamOrder": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "description": "Permutation of the configured teams' indices; the team at position 0 is first on watch. Ignored unless it is a valid permutation. Defaults to configuration order."
+                  }
+                }
+              },
+              "example": {
+                "systemId": "fixed-4-4",
+                "startAt": 1752994800000,
+                "teamOrder": [1, 0]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/WatchData"
+          },
+          "400": {
+            "description": "Unknown watch system, or one unavailable for the configured team count.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "unknown or unavailable watch system: fixed-9-9"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "503": {
+            "$ref": "#/components/responses/NotReady"
+          }
+        }
+      }
+    },
+    "/watch/stop": {
+      "post": {
+        "tags": ["watch"],
+        "summary": "Stop the watch",
+        "description": "Stops the running watch and clears the per-watch team order. Idempotent — succeeds whether or not a watch is running. Requires authentication when server security is enabled.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/WatchData"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "503": {
+            "$ref": "#/components/responses/NotReady"
+          }
+        }
+      }
+    }
+  }
+}

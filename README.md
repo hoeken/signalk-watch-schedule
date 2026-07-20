@@ -77,10 +77,54 @@ Base: `/plugins/signalk-watch-schedule/api`
 | GET | `/state` | read | Current state + resolved schedule. |
 | GET | `/config` | read | Teams + defaults. |
 | GET | `/systems` | read | Available watch systems. |
-| POST | `/watch/start` | write | Body `{ systemId, startAt?, teamOrder? }`. `startAt` (epoch ms) snaps to the hour and defaults to now; `teamOrder` is a permutation of team indices putting one team first. |
-| POST | `/watch/stop` | write | Stops the watch. |
+| POST | `/watch/start` | write | Start (or restart) the watch. |
+| POST | `/watch/stop` | write | Stop the watch. |
 
-Write endpoints require an authenticated SignalK user when server security is enabled.
+The machine-readable OpenAPI spec is browsable in the SignalK admin UI under
+**Documentation → OpenAPI**.
+
+### Starting and stopping the watch
+
+`POST /watch/start` takes an optional JSON body:
+
+| Field | Type | Description |
+|---|---|---|
+| `systemId` | string | Which rotation to run — one of the ids from `GET /systems`. Defaults to the configured default system. |
+| `startAt` | number | Start time in epoch ms, snapped to a whole clock hour (per the configured rounding). May be in the past or future. Defaults to now. |
+| `teamOrder` | number[] | Permutation of team indices; the team at position 0 is first on watch. Defaults to configuration order. |
+
+Both endpoints return the full watch view (the same data published under `watch.*`),
+so a `200` response means the change took effect. Starting while a watch is already
+running restarts it with the new parameters; stopping is idempotent.
+
+```bash
+BASE=http://localhost:3000/plugins/signalk-watch-schedule/api
+
+# Start a 4-on/4-off watch now, with the second team first on watch
+curl -X POST "$BASE/watch/start" \
+  -H 'Content-Type: application/json' \
+  -d '{"systemId": "fixed-4-4", "teamOrder": [1, 0]}'
+
+# Stop the watch
+curl -X POST "$BASE/watch/stop"
+```
+
+When server security is enabled, the write endpoints (`/watch/start`, `/watch/stop`)
+return `401` unless the request is authenticated. Log in first and send the token:
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:3000/signalk/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username": "me", "password": "secret"}' | jq -r .token)
+
+curl -X POST "$BASE/watch/start" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"systemId": "fixed-4-4"}'
+```
+
+The read endpoints are always open, so dashboards and other consumers can follow the
+schedule without credentials.
 
 ## Development
 

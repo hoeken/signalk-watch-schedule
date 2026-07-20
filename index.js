@@ -7,6 +7,7 @@
  */
 
 import { BUILTIN_SYSTEMS } from "./src/core/index.js";
+import openapi from "./src/server/openApi.json" with { type: "json" };
 import { createStateStore } from "./src/server/state.js";
 import { buildWatchData, publish, publishMeta } from "./src/server/publisher.js";
 import { registerRoutes } from "./src/server/api.js";
@@ -174,6 +175,9 @@ export default function (app) {
     unsubscribeAutoWatch = null;
     store = null;
   };
+
+  // Machine-readable API spec, served by SignalK under Documentation → OpenAPI.
+  plugin.getOpenApi = () => openapi;
 
   plugin.registerWithRouter = (router) => {
     registerRoutes(router, {
