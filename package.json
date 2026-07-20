@@ -42,10 +42,11 @@
       "./docs/screenshots/mobile.png"
     ],
     "recommends": [
-      "signalk-dead-mans-switch",
       "signalk-navico-embedder",
+      "signalk-dead-mans-switch",
       "@meri-imperiumi/signalk-autostate",
-      "@meri-imperiumi/signalk-logbook"
+      "@meri-imperiumi/signalk-logbook",
+      "signalk-einklabel-plugin"
     ]
   },
   "author": "Zach Hoeken",
