@@ -1,3 +1,14 @@
+# Unreleased
+
+## ✨ Improvements
+
+- Optional [signalk-dead-mans-switch](https://www.npmjs.com/package/signalk-dead-mans-switch) integration (#5): when enabled, the dead man's switch is armed whenever a watch starts (manual, API, or automatic) and disarmed when the watch stops — so overnight check-ins run exactly while someone is supposed to be on watch. Off by default
+- On security-enabled servers the integration authenticates itself: the plugin submits a SignalK access request on startup, and once you approve it (Security → Access Requests) the granted token is saved into the plugin config automatically
+
+## 🎨 Webapp
+
+- While a watch is running with the integration enabled, the dead man's switch check-in panel is embedded below the controls, so the crew can acknowledge without leaving the schedule
+
 # v1.0.0
 
 First stable release. 🎉

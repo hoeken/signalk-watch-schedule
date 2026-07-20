@@ -3,6 +3,7 @@ import { resolveSchedule, snapToHour } from "@core/index.js";
 import * as api from "./api.js";
 import ScheduleList from "./components/ScheduleList.jsx";
 import WatchControl from "./components/WatchControl.jsx";
+import DeadmanPanel from "./components/DeadmanPanel.jsx";
 import LoginModal from "./components/LoginModal.jsx";
 import ThemeToggle from "./components/ThemeToggle.jsx";
 
@@ -31,6 +32,7 @@ function loadStoredTeams() {
 export default function App() {
   const [view, setView] = useState(null); // composed { state, system, teams, ... }
   const [systems, setSystems] = useState([]);
+  const [config, setConfig] = useState(null); // plugin config (integration flags)
   const [loginStatus, setLoginStatus] = useState(null);
   const [selectedSystemId, setSelectedSystemId] = useState(null);
   const [startAt, setStartAt] = useState(null); // chosen start hour; null = follow "now"
@@ -99,6 +101,19 @@ export default function App() {
       cancelled = true;
     };
   }, [systemsTeamCount, loginStatus]);
+
+  // Plugin config (e.g. whether the dead man's switch integration is on) is
+  // auth-gated like /api/systems, so a login needs to retry it too.
+  useEffect(() => {
+    let cancelled = false;
+    api.getConfig().then((cfg) => {
+      if (!cancelled)
+        setConfig(cfg);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loginStatus]);
 
   // Default the picker to the active system (or first available) once loaded,
   // and keep the selection valid. A team-count change can drop the active
@@ -254,27 +269,30 @@ export default function App() {
         </section>
 
         {controllable ? (
-          <aside className="panel control-panel">
-            <h2>Control</h2>
-            <WatchControl
-              onWatch={onWatch}
-              systems={systems}
-              system={view?.system}
-              startedAt={state.startedAt}
-              now={now}
-              selectedSystemId={selectedSystemId}
-              onSelect={setSelectedSystemId}
-              teams={editTeams}
-              onTeamsChange={updateTeams}
-              teamsCustomized={draftTeams != null}
-              onResetTeams={() => updateTeams(null)}
-              startAt={startHour}
-              startOptions={startOptions}
-              onSelectStartAt={setStartAt}
-              onStart={doStart}
-              onStop={doStop}
-              busy={busy}
-            />
+          <aside className="side-col">
+            <section className="panel control-panel">
+              <h2>Control</h2>
+              <WatchControl
+                onWatch={onWatch}
+                systems={systems}
+                system={view?.system}
+                startedAt={state.startedAt}
+                now={now}
+                selectedSystemId={selectedSystemId}
+                onSelect={setSelectedSystemId}
+                teams={editTeams}
+                onTeamsChange={updateTeams}
+                teamsCustomized={draftTeams != null}
+                onResetTeams={() => updateTeams(null)}
+                startAt={startHour}
+                startOptions={startOptions}
+                onSelectStartAt={setStartAt}
+                onStart={doStart}
+                onStop={doStop}
+                busy={busy}
+              />
+            </section>
+            {onWatch && config?.deadMansSwitch ? <DeadmanPanel /> : null}
           </aside>
         ) : null}
       </main>

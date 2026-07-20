@@ -19,12 +19,18 @@ import { availableSystems } from "../core/index.js";
 import { buildWatchData } from "./publisher.js";
 import { startWatch, stopWatch } from "./watch-control.js";
 import { resolveTeams } from "./teams.js";
+import { syncDeadmansSwitch } from "./deadman.js";
 
-/** Is SignalK security turned on for this server? */
+/**
+ * Is SignalK security turned on for this server? The server installs either a
+ * real security strategy or a dummy pass-through when security is off, and
+ * there is no isEnabled() — "not the dummy" is the check the server itself
+ * uses.
+ */
 function securityEnabled(app) {
   try {
-    if (app.securityStrategy && typeof app.securityStrategy.isEnabled === "function") {
-      return app.securityStrategy.isEnabled();
+    if (app.securityStrategy && typeof app.securityStrategy.isDummy === "function") {
+      return !app.securityStrategy.isDummy();
     }
   } catch {
     /* fall through */
@@ -64,6 +70,8 @@ export function registerRoutes(router, ctx) {
       teams: resolveTeams(app, options),
       defaultSystemId: options.defaultSystemId ?? null,
       publishHorizon: options.publishHorizon ?? 8,
+      // Lets the webapp know whether to show the dead man's switch panel.
+      deadMansSwitch: !!options.enableDeadMansSwitch,
     });
   });
 
@@ -99,6 +107,7 @@ export function registerRoutes(router, ctx) {
       return res.status(400).json({ error: result.error });
     }
     publishNow();
+    syncDeadmansSwitch(app, options, true);
     res.json(buildWatchData(result.state, options, Date.now(), app));
   });
 
@@ -111,6 +120,7 @@ export function registerRoutes(router, ctx) {
 
     const newState = stopWatch(store);
     publishNow();
+    syncDeadmansSwitch(app, getOptions(), false);
     res.json(buildWatchData(newState, getOptions(), Date.now(), app));
   });
 }

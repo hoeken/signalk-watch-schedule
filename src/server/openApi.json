@@ -246,7 +246,12 @@
       },
       "Config": {
         "type": "object",
-        "required": ["teams", "defaultSystemId", "publishHorizon"],
+        "required": [
+          "teams",
+          "defaultSystemId",
+          "publishHorizon",
+          "deadMansSwitch"
+        ],
         "properties": {
           "teams": {
             "type": "array",
@@ -264,6 +269,10 @@
             "type": "integer",
             "minimum": 1,
             "description": "How many upcoming shifts are published and returned in `schedule`."
+          },
+          "deadMansSwitch": {
+            "type": "boolean",
+            "description": "Whether the optional signalk-dead-mans-switch integration is enabled: the switch is armed when a watch starts and disarmed when it stops, and the web UI embeds the switch webapp while on watch."
           }
         }
       },
@@ -351,7 +360,8 @@
                     { "name": "Starboard Watch" }
                   ],
                   "defaultSystemId": "fixed-4-4",
-                  "publishHorizon": 8
+                  "publishHorizon": 8,
+                  "deadMansSwitch": false
                 }
               }
             }

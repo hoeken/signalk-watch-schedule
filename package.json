@@ -42,6 +42,7 @@
       "./docs/screenshots/mobile.png"
     ],
     "recommends": [
+      "signalk-dead-mans-switch",
       "signalk-navico-embedder",
       "@meri-imperiumi/signalk-autostate",
       "@meri-imperiumi/signalk-logbook"

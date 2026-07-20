@@ -17,6 +17,9 @@ color-coded, responsive schedule on any device.
   starts at the chosen time, the rest follow.
 - **Live, color-coded schedule** starting with the active shift, highlighted and counting down.
 - **Auth-aware UI** — anyone can view the schedule; logged-in users get start/stop control.
+- **Dead man's switch integration** — optionally arm
+  [signalk-dead-mans-switch](https://www.npmjs.com/package/signalk-dead-mans-switch) while a
+  watch is running, with its check-in panel embedded right in the web UI.
 - **Everything published under `watch.*`** so other SignalK consumers can use it too.
 
 ## How it works
@@ -54,12 +57,50 @@ Then enable the plugin in **Server → Plugin Config** and open it from **Webapp
 | **Default Watch System** | Rotation pre-selected when starting a watch. |
 | **Start-time rounding** | How the start snaps to the hour: `nearest` / `up` / `down`. |
 | **Shifts to publish** | How many upcoming shifts to publish and show. |
+| **Automatically start a watch under way** | Start a watch (defaults apply) when `navigation.state` becomes sailing/motoring. |
+| **Automatically stop the watch at rest** | Stop the watch when `navigation.state` becomes moored/anchored. |
+| **Arm the dead man's switch on watch** | Arm `signalk-dead-mans-switch` when a watch starts and disarm it when the watch stops. Off by default; see below. |
+| **Dead man's switch access token** | Only used when server security is enabled: the SignalK access token sent with the arm/disarm requests. Filled in automatically via an access request — see below. |
 
 These teams are only the *defaults*: the web UI can add, remove, rename, and reorder teams
 before starting a watch. Those per-watch edits are kept in the browser (so they come back
 after stopping a watch to tweak something) — only an active watch's teams are stored on the
 server. Only systems whose required team count matches the current teams are offered (e.g. a
 three-team rotation appears once you have three teams).
+
+## Dead man's switch integration
+
+With [signalk-dead-mans-switch](https://www.npmjs.com/package/signalk-dead-mans-switch)
+installed and **Arm the dead man's switch on watch** enabled, the two plugins work as one:
+
+- Starting a watch (from the web UI, the REST API, or the automatic
+  `navigation.state` triggers) **arms** the switch, so periodic "you still there?"
+  check-ins run while someone is supposed to be on watch.
+- Stopping the watch **disarms** it — no more check-ins at anchor.
+- While a watch is running, the switch's check-in panel is embedded below the
+  controls in the web UI, so the on-watch crew can acknowledge without leaving
+  the schedule. The `mode=day|night` query param (passed by B&G displays for
+  theming) is forwarded to the embedded panel so both apps match.
+
+The arm/disarm calls are plain `POST`s to the switch plugin's API on the local
+server (`/plugins/signalk-dead-mans-switch/arm` and `/disarm`), fire-and-forget:
+if the switch plugin is missing or unreachable the watch still starts and stops
+normally, and the failure is only logged.
+
+When server security is enabled, SignalK requires an authenticated admin
+principal for all `/plugins/*` requests, so the arm/disarm calls need a token.
+The plugin obtains one by itself using SignalK's
+[access request](https://signalk.org/specification/1.8.2/doc/access_requests.html)
+flow: on startup, with the integration enabled and no token configured, it
+submits a device access request — approve it in the admin UI under
+**Security → Access Requests** (it appears as *"Watch Schedule — dead man's
+switch integration"*) and the granted token is saved into the plugin config
+automatically. If the request is denied, the plugin asks again on its next
+start. You can also paste a token in manually (e.g. one from
+`signalk-generate-token`) to skip the approval step.
+
+Note that the server must have **Allow Device Access Requests** enabled
+(Security settings) for the automatic flow to work.
 
 ## SignalK paths
 

@@ -202,10 +202,17 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .control-panel {
+  .side-col {
     position: sticky;
     top: 0px;
   }
+}
+
+/* The side column stacks the control panel and the optional dead man's switch
+   panel. Flexbox `gap` isn't supported before Chromium 84 (the MFD runs 69),
+   so space the panels with a margin, matching the grid gap. */
+.side-col > * + * {
+  margin-top: 16px;
 }
 
 .panel {
@@ -560,6 +567,16 @@ input {
 .team-order__add:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+/* ---- dead man's switch (embedded webapp) ---- */
+.deadman-frame {
+  display: block;
+  width: 100%;
+  height: 320px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
 }
 
 .login__title {

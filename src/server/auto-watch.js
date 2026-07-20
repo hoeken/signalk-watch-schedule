@@ -14,6 +14,7 @@
  */
 
 import { startWatch, stopWatch } from "./watch-control.js";
+import { syncDeadmansSwitch } from "./deadman.js";
 
 /** navigation.state value → the group we track, or null when we don't care. */
 const GROUP = {
@@ -81,6 +82,7 @@ export function startAutoWatch(ctx) {
       if (typeof app.debug === "function")
         app.debug(`auto-started watch (navigation.state → ${value})`);
       publishNow();
+      syncDeadmansSwitch(app, options, true);
     } else {
       // group === "rest"
       if (!options.enableAutoWatchStop)
@@ -91,6 +93,7 @@ export function startAutoWatch(ctx) {
       if (typeof app.debug === "function")
         app.debug(`auto-stopped watch (navigation.state → ${value})`);
       publishNow();
+      syncDeadmansSwitch(app, options, false);
     }
   };
 

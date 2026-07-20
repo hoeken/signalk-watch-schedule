@@ -71,6 +71,19 @@ export async function getSystems(teamCount) {
 }
 
 /**
+ * Plugin configuration (default teams, defaults, integration flags). Served by
+ * the auth-gated plugin API, so anonymous viewers get null — that's fine, it
+ * only drives controls shown to users who can control the watch.
+ */
+export async function getConfig() {
+  try {
+    return await getJSON(`${BASE}/api/config`);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * SignalK login status. Degrades gracefully to "not logged in / auth required"
  * if the endpoint is unavailable.
  */
