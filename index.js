@@ -195,9 +195,9 @@ export default function (app) {
       },
       enableDeadMansSwitch: {
         type: "boolean",
-        title: "Arm the dead man's switch on watch",
+        title: "Enable signalk-dead-mans-switch integration",
         description:
-          "Automatically arm signalk-dead-mans-switch when a watch starts and disarm it when the watch stops. Requires the signalk-dead-mans-switch plugin to be installed and enabled.",
+          "Automatically arm signalk-dead-mans-switch when a watch starts, disarm it when the watch stops, and enable the arm/disarm controls in the watch schedule UI. Requires the signalk-dead-mans-switch plugin to be installed and enabled.",
         default: false,
       },
       deadMansSwitchToken: {
