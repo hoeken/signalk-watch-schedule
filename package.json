@@ -34,8 +34,8 @@
     "appIcon": "icon-512.png",
     "displayName": "Watch Schedule",
     "screenshots": [
+      "./docs/screenshots/deadmans-switch.png",
       "./docs/screenshots/setup.png",
-      "./docs/screenshots/started.png",
       "./docs/screenshots/highlight.png",
       "./docs/screenshots/read_only.png",
       "./docs/screenshots/dark_mode.png",
