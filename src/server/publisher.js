@@ -9,6 +9,7 @@
  */
 
 import { resolveSchedule, getSystemById, availableSystems, orderTeams } from "../core/index.js";
+import { allSystems } from "./custom-systems.js";
 import { resolveTeams, sanitizeTeams } from "./teams.js";
 
 /**
@@ -26,7 +27,7 @@ export function buildWatchData(state, options, now, app) {
   // resolved schedule and the published `watch.teams` use this order, and the
   // webapp recomputes from the same order — they cannot disagree.
   const teams = orderTeams(baseTeams, state.teamOrder);
-  const systems = availableSystems(baseTeams.length);
+  const systems = availableSystems(baseTeams.length, allSystems(options));
   const system = state.systemId ? getSystemById(state.systemId, systems) ?? null : null;
 
   let schedule = [];

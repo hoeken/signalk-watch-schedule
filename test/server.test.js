@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { buildWatchData } from "../src/server/publisher.js";
+import { parseCustomSystems } from "../src/server/custom-systems.js";
 import { resolveTeams } from "../src/server/teams.js";
 import { requestDeadmanToken } from "../src/server/deadman.js";
 import createPlugin from "../index.js";
@@ -563,6 +564,158 @@ test("a watch whose team count no longer matches the config is stopped on start"
   assert.equal((await readState(reloadedRouter)).onWatch, false, "stale watch stopped on start");
 
   reloaded.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+// --- custom watch systems ---
+
+/** A valid 2-team custom system: a clock-anchored 12h day/night split. */
+const DAY_NIGHT_CONFIG = JSON.stringify({
+  teamCount: 2,
+  cycleDuration: 24 * 60,
+  anchored: true,
+  segments: [
+    { offset: 0, duration: 720, teamIndex: 0, label: "Day" },
+    { offset: 720, duration: 720, teamIndex: 1, label: "Night" },
+  ],
+});
+const CUSTOM_SYSTEMS = [
+  { id: "day-night", name: "Day / Night", description: "12-hour split", config: DAY_NIGHT_CONFIG },
+];
+
+test("parseCustomSystems accepts a valid entry and fills the system fields", () => {
+  const { systems, errors } = parseCustomSystems(CUSTOM_SYSTEMS);
+  assert.deepEqual(errors, []);
+  assert.equal(systems.length, 1);
+  const sys = systems[0];
+  assert.equal(sys.id, "day-night");
+  assert.equal(sys.name, "Day / Night");
+  assert.equal(sys.description, "12-hour split");
+  assert.equal(sys.builtin, false);
+  assert.equal(sys.teamCount, 2);
+  assert.equal(sys.segments.length, 2);
+});
+
+test("parseCustomSystems skips broken entries but keeps the valid ones", () => {
+  const { systems, errors } = parseCustomSystems([
+    { id: "", name: "No Id", config: DAY_NIGHT_CONFIG },                    // missing id
+    { id: "bad-json", name: "Bad JSON", config: "{not json" },              // unparseable
+    { id: "fixed-4-4", name: "Shadow", config: DAY_NIGHT_CONFIG },          // collides with a built-in
+    { id: "gap", name: "Gap", config: JSON.stringify({ teamCount: 2, cycleDuration: 120, segments: [{ offset: 0, duration: 30, teamIndex: 0 }, { offset: 60, duration: 60, teamIndex: 1 }] }) }, // invalid schedule
+    ...CUSTOM_SYSTEMS,                                                       // still accepted
+    { id: "day-night", name: "Dupe", config: DAY_NIGHT_CONFIG },            // duplicate custom id
+  ]);
+  assert.equal(systems.length, 1);
+  assert.equal(systems[0].id, "day-night");
+  assert.equal(errors.length, 5);
+  assert.match(errors[0], /id and name are required/);
+  assert.match(errors[1], /not valid JSON/);
+  assert.match(errors[2], /already used/);
+  assert.match(errors[3], /gap\/overlap/);
+  assert.match(errors[4], /already used/);
+});
+
+test("a custom system is offered, startable, published, and survives a restart", async () => {
+  const app = makeApp();
+  const plugin = createPlugin(app);
+  const options = { ...OPTIONS, customSystems: CUSTOM_SYSTEMS };
+  plugin.start(options);
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  // Offered alongside the built-ins for the matching team count…
+  const sysRes = makeRes();
+  await router.routes["get /api/systems"]({}, sysRes);
+  assert.ok(sysRes.body.some((s) => s.id === "day-night"), "custom system listed");
+
+  // …startable, with the resolved schedule using its segments…
+  const startRes = makeRes();
+  await router.routes["post /api/watch/start"]({ body: { systemId: "day-night" } }, startRes);
+  assert.equal(startRes.statusCode, 200);
+  assert.equal(startRes.body.system.id, "day-night");
+  assert.equal(startRes.body.system.builtin, false);
+  assert.ok(["Day", "Night"].includes(startRes.body.current.label));
+  plugin.stop();
+
+  // …and reconciliation on restart keeps it running (the custom system is
+  // still in the config, so the persisted watch remains schedulable).
+  const reloaded = createPlugin(app);
+  reloaded.start(options);
+  const reloadedRouter = makeRouter();
+  reloaded.registerWithRouter(reloadedRouter);
+  assert.equal((await readState(reloadedRouter)).onWatch, true, "custom-system watch survives restart");
+
+  // Removing the custom system from the config strands the watch → stopped.
+  reloaded.stop();
+  const stripped = createPlugin(app);
+  stripped.start(OPTIONS);
+  const strippedRouter = makeRouter();
+  stripped.registerWithRouter(strippedRouter);
+  assert.equal((await readState(strippedRouter)).onWatch, false, "watch stopped once its system is gone");
+
+  stripped.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("invalid custom systems are reported on start and do not break the built-ins", async () => {
+  const app = makeApp();
+  const reported = [];
+  app.error = (msg) => reported.push(msg);
+  const plugin = createPlugin(app);
+  plugin.start({ ...OPTIONS, customSystems: [{ id: "broken", name: "Broken", config: "{oops" }] });
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  assert.equal(reported.length, 1);
+  assert.match(reported[0], /custom system 1 \("broken"\)/);
+
+  const res = makeRes();
+  await router.routes["post /api/watch/start"]({ body: { systemId: "fixed-4-4" } }, res);
+  assert.equal(res.statusCode, 200, "built-ins unaffected by a broken custom entry");
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("custom systems needing more than 5 teams are rejected", () => {
+  // The web UI's team editor tops out at 5 teams, so a 6-team system could
+  // never be staffed there — it must be refused, not offered.
+  const sixTeamConfig = JSON.stringify({
+    teamCount: 6,
+    cycleDuration: 6 * 60,
+    segments: Array.from({ length: 6 }, (_, i) => ({ offset: i * 60, duration: 60, teamIndex: i })),
+  });
+  const customSystems = [{ id: "six-up", name: "Six Up", config: sixTeamConfig }];
+
+  const { systems, errors } = parseCustomSystems(customSystems);
+  assert.equal(systems.length, 0);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /teamCount 6 exceeds the 5-team maximum/);
+
+  // Six teams therefore remain an unschedulable crew size.
+  const app = makeApp();
+  const sixTeams = Array.from({ length: 6 }, (_, i) => ({ name: `T${i}` }));
+  createPlugin(app).start({ ...OPTIONS, teams: sixTeams, customSystems });
+  assert.match(app.pluginError, /2–5 teams/);
+});
+
+test("the config schema lists systems as \"[X Teams] name\" including customs", () => {
+  const app = makeApp();
+  const plugin = createPlugin(app);
+  plugin.start({ ...OPTIONS, customSystems: CUSTOM_SYSTEMS });
+
+  const schema = plugin.schema();
+  const { enum: ids, enumNames: names } = schema.properties.defaultSystemId;
+  assert.equal(ids.length, names.length);
+  assert.ok(names.every((n) => /^\[\d+ Teams\] /.test(n)), "every entry uses the [X Teams] prefix");
+  const customIdx = ids.indexOf("day-night");
+  assert.ok(customIdx >= 0, "custom system offered as a default");
+  assert.equal(names[customIdx], "[2 Teams] Day / Night");
+  // Grouped by team count: the counts read in non-decreasing order.
+  const counts = names.map((n) => Number(n.match(/^\[(\d+) Teams\]/)[1]));
+  assert.deepEqual(counts, [...counts].sort((a, b) => a - b));
+
+  plugin.stop();
   fs.rmSync(app.dir, { recursive: true, force: true });
 });
 

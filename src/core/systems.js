@@ -171,13 +171,15 @@ export function getSystemById(id, systems = BUILTIN_SYSTEMS) {
 }
 
 /**
- * Built-in systems available for a crew of the given size, filtered to those that
- * need exactly the number of configured teams. A rotation with fewer teams would
- * leave some teams without a watch and one with more can't be staffed, so only an
- * exact match is offered.
+ * Systems available for a crew of the given size, filtered to those that need
+ * exactly the number of configured teams. A rotation with fewer teams would
+ * leave some teams without a watch and one with more can't be staffed, so only
+ * an exact match is offered.
  * @param {number} teamCount
+ * @param {WatchSystem[]} [systems] Defaults to the built-ins; the server passes
+ *   the built-ins plus any custom systems from the plugin config.
  * @returns {WatchSystem[]}
  */
-export function availableSystems(teamCount) {
-  return BUILTIN_SYSTEMS.filter((s) => s.teamCount === teamCount);
+export function availableSystems(teamCount, systems = BUILTIN_SYSTEMS) {
+  return systems.filter((s) => s.teamCount === teamCount);
 }

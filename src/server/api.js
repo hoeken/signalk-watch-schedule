@@ -16,6 +16,7 @@
  */
 
 import { availableSystems } from "../core/index.js";
+import { allSystems } from "./custom-systems.js";
 import { buildWatchData } from "./publisher.js";
 import { startWatch, stopWatch } from "./watch-control.js";
 import { resolveTeams } from "./teams.js";
@@ -82,7 +83,7 @@ export function registerRoutes(router, ctx) {
     const requested = Number.parseInt(req.query && req.query.teamCount, 10);
     const count =
       Number.isInteger(requested) && requested > 0 ? requested : resolveTeams(app, options).length;
-    res.json(availableSystems(count));
+    res.json(availableSystems(count, allSystems(options)));
   });
 
   router.post("/api/watch/start", (req, res) => {

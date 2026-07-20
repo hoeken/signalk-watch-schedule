@@ -373,7 +373,7 @@
       "get": {
         "tags": ["config"],
         "summary": "List available watch systems",
-        "description": "Returns the built-in rotation systems that require exactly the given number of teams — `teamCount` when supplied, otherwise the number of default teams currently configured. A `/watch/start` request is accepted when its system id matches the team count it starts with.",
+        "description": "Returns the rotation systems (built-in plus any custom systems from the plugin config) that require exactly the given number of teams — `teamCount` when supplied, otherwise the number of default teams currently configured. A `/watch/start` request is accepted when its system id matches the team count it starts with.",
         "parameters": [
           {
             "name": "teamCount",

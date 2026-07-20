@@ -6,8 +6,8 @@
  * start/stop the watch.
  */
 
-import { BUILTIN_SYSTEMS } from "./src/core/index.js";
 import openapi from "./src/server/openApi.json" with { type: "json" };
+import { allSystems, parseCustomSystems } from "./src/server/custom-systems.js";
 import { createStateStore } from "./src/server/state.js";
 import { buildWatchData, publish, publishMeta } from "./src/server/publisher.js";
 import { registerRoutes } from "./src/server/api.js";
@@ -51,6 +51,20 @@ function buildPathChecks(app) {
   return props;
 }
 
+// Render a sorted list of supported team counts for the status message,
+// collapsing runs: [2,3,4,5] → "2–5", [2,3,4,5,7] → "2–5, 7".
+function formatCounts(counts) {
+  const runs = [];
+  for (const n of counts) {
+    const last = runs[runs.length - 1];
+    if (last && n === last[1] + 1)
+      last[1] = n;
+    else
+      runs.push([n, n]);
+  }
+  return runs.map(([lo, hi]) => (lo === hi ? `${lo}` : `${lo}–${hi}`)).join(", ");
+}
+
 export default function (app) {
   const plugin = {
     id: "signalk-watch-schedule",
@@ -67,15 +81,16 @@ export default function (app) {
   // Cancel handle for the dead man's switch access-request flow.
   let cancelTokenRequest = null;
 
-  // Reflect the effective crew size in the plugin status. The built-in rotations
-  // only cover 2–5 teams (availableSystems), so a crew outside that range can't
-  // be scheduled — surface it as a plugin error, the same condition the webapp
-  // shows as a banner. Driven off the published view so both a config change and
-  // a runtime communication.crewNames change are caught.
+  // Reflect the effective crew size in the plugin status. Only team counts some
+  // system covers (2–5 for the built-ins, plus whatever custom systems add) can
+  // be scheduled — surface anything else as a plugin error, the same condition
+  // the webapp shows as a banner. Driven off the published view so both a config
+  // change and a runtime communication.crewNames change are caught.
   const updateStatus = (data) => {
     const count = data.teams.length;
-    if (count < 2 || count > 5) {
-      app.setPluginError(`Watch needs 2–5 teams — ${count} configured. Adjust the teams in the web UI or the Default Watch Teams in the plugin settings.`);
+    const counts = [...new Set(allSystems(options).map((s) => s.teamCount))].sort((a, b) => a - b);
+    if (!counts.includes(count)) {
+      app.setPluginError(`Watch needs ${formatCounts(counts)} teams — ${count} configured. Adjust the teams in the web UI or the Default Watch Teams in the plugin settings.`);
       return;
     }
     app.setPluginStatus(data.state.onWatch ? `On watch (${data.state.systemId})` : "Idle — no watch in progress");
@@ -88,6 +103,11 @@ export default function (app) {
     publish(app, plugin.id, data);
     updateStatus(data);
   };
+
+  // Systems offered in the default-system dropdown: built-ins plus any valid
+  // custom systems, grouped by team count (the sort is stable, so within a
+  // count the built-ins keep their order and customs follow).
+  const schemaSystems = () => [...allSystems(options)].sort((a, b) => a.teamCount - b.teamCount);
 
   plugin.schema = () => ({
     type: "object",
@@ -115,9 +135,35 @@ export default function (app) {
         type: "string",
         title: "Default Watch System",
         description: "Pre-selected rotation when starting a watch.",
-        enum: BUILTIN_SYSTEMS.map((s) => s.id),
-        enumNames: BUILTIN_SYSTEMS.map((s) => `${s.name} — ${s.description}`),
+        enum: schemaSystems().map((s) => s.id),
+        enumNames: schemaSystems().map((s) => `[${s.teamCount} Teams] ${s.name}`),
         default: "fixed-4-4",
+      },
+      customSystems: {
+        type: "array",
+        title: "Custom Watch Systems",
+        description:
+          "Your own rotations, offered alongside the built-in systems (and in the Default Watch System dropdown after saving). See the README for the config JSON format and how to generate one with AI. Invalid entries are skipped and reported in the server log.",
+        default: [],
+        items: {
+          type: "object",
+          required: ["id", "name", "config"],
+          properties: {
+            id: {
+              type: "string",
+              title: "Id",
+              description: "Stable unique key, e.g. swedish-6. Must not collide with a built-in system id.",
+            },
+            name: { type: "string", title: "Name", description: "Display name shown in the pickers." },
+            description: { type: "string", title: "Description", description: "Optional human description." },
+            config: {
+              type: "string",
+              title: "Config JSON",
+              description:
+                'The schedule definition as JSON: {"teamCount", "cycleDuration", "anchored", "segments": [{"offset", "duration", "teamIndex", "label"}]} — all times in minutes. See the README for the full format.',
+            },
+          },
+        },
       },
       snapMode: {
         type: "string",
@@ -166,6 +212,14 @@ export default function (app) {
 
   plugin.start = (opts) => {
     options = opts || {};
+    // Custom systems are parsed on demand wherever they're used, silently
+    // skipping broken entries — report those once here so a config mistake is
+    // visible in the server log instead of a rotation just going missing.
+    const custom = parseCustomSystems(options.customSystems);
+    for (const err of custom.errors)
+      app.error(`watch-schedule: ${err} — entry skipped`);
+    if (custom.systems.length && typeof app.debug === "function")
+      app.debug(`loaded ${custom.systems.length} custom watch system(s): ${custom.systems.map((s) => s.id).join(", ")}`);
     store = createStateStore(app);
     // A watch persisted from a previous run may no longer match the current
     // config (e.g. the team count changed while we were stopped). Stop such a

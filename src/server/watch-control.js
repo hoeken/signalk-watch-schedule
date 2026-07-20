@@ -5,6 +5,7 @@
  */
 
 import { availableSystems, getSystemById, snapToHour, isTeamOrder } from "../core/index.js";
+import { allSystems } from "./custom-systems.js";
 import { resolveTeams, sanitizeTeams } from "./teams.js";
 
 /**
@@ -24,7 +25,7 @@ import { resolveTeams, sanitizeTeams } from "./teams.js";
 export function startWatch(store, options, params = {}, app) {
   const customTeams = sanitizeTeams(params.teams);
   const teams = customTeams ?? resolveTeams(app, options);
-  const systems = availableSystems(teams.length);
+  const systems = availableSystems(teams.length, allSystems(options));
   const requestedId = params.systemId || options.defaultSystemId;
   const system = getSystemById(requestedId, systems);
   if (!system)
@@ -71,7 +72,7 @@ export function reconcileWatch(store, options, app) {
     return { stopped: false };
 
   const teams = sanitizeTeams(state.teams) ?? resolveTeams(app, options);
-  const system = getSystemById(state.systemId);
+  const system = getSystemById(state.systemId, allSystems(options));
   if (!system) {
     stopWatch(store);
     return { stopped: true, reason: `unknown watch system "${state.systemId}"` };

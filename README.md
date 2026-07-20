@@ -11,6 +11,8 @@ color-coded, responsive schedule on any device.
   and can be renamed, added, removed, and reordered per watch right in the web UI.
 - **Built-in rotation systems**: 4-on/4-off, 3-on/3-off, 6-on/6-off, and Royal Navy dog watches —
   the picker offers the rotations that fit your team count.
+- **Custom watch systems** — define your own rotations as JSON in the plugin settings; they're
+  offered everywhere the built-ins are. See [Custom watch systems](#custom-watch-systems).
 - **Whole-hour starts** — the schedule always begins on a clean clock hour, with a start-time
   picker covering ±12 hours so you can sync a watch that began earlier or schedule one ahead.
 - **Pick who's first** — drag (or nudge with ▲/▼) the watch teams into order; the team on top
@@ -54,7 +56,8 @@ Then enable the plugin in **Server → Plugin Config** and open it from **Webapp
 | Setting | Description |
 |---|---|
 | **Default Watch Teams** | The default teams offered when starting a watch, in rotation order. Name each for the watch (e.g. Port Watch) or the crew member(s) standing it. Leave empty to use `communication.crewNames` when published. |
-| **Default Watch System** | Rotation pre-selected when starting a watch. |
+| **Default Watch System** | Rotation pre-selected when starting a watch, listed as `[X Teams] Name`. |
+| **Custom Watch Systems** | Your own rotations, offered alongside the built-ins — see [Custom watch systems](#custom-watch-systems). |
 | **Start-time rounding** | How the start snaps to the hour: `nearest` / `up` / `down`. |
 | **Shifts to publish** | How many upcoming shifts to publish and show. |
 | **Automatically start a watch under way** | Start a watch (defaults apply) when `navigation.state` becomes sailing/motoring. |
@@ -67,6 +70,72 @@ before starting a watch. Those per-watch edits are kept in the browser (so they 
 after stopping a watch to tweak something) — only an active watch's teams are stored on the
 server. Only systems whose required team count matches the current teams are offered (e.g. a
 three-team rotation appears once you have three teams).
+
+## Custom watch systems
+
+When the built-in rotations don't fit your crew, add your own under **Custom Watch
+Systems** in the plugin settings. Each entry has an **Id** (a stable unique key, e.g.
+`swedish-3` — it must not collide with a built-in or another custom id), a **Name**
+shown in the pickers, an optional **Description**, and a **Config JSON** holding the
+schedule definition itself.
+
+Valid custom systems behave exactly like built-ins: they appear in the web UI picker
+(when the team count matches), in `GET /systems`, and in the **Default Watch System**
+dropdown. Invalid entries are skipped and the reason is written to the server log when
+the plugin starts, so a typo can never take the schedule down.
+
+### Config JSON format
+
+The config is one JSON object describing a repeating rotation. All times are **minutes**.
+
+```json
+{
+  "teamCount": 2,
+  "cycleDuration": 1440,
+  "anchored": true,
+  "segments": [
+    { "offset": 0,   "duration": 720, "teamIndex": 0, "label": "Day" },
+    { "offset": 720, "duration": 720, "teamIndex": 1, "label": "Night" }
+  ]
+}
+```
+
+| Key | Type | Description |
+|---|---|---|
+| `teamCount` | number | Teams the rotation needs, at most 5 (the web UI's team limit — systems needing more are rejected). The system is only offered when the watch has exactly this many teams. |
+| `cycleDuration` | number | Total minutes in one full cycle. The segments must sum to exactly this; the rotation repeats forever. |
+| `anchored` | boolean, optional | Omitted/`false`: a plain rotating cycle — offset 0 is whenever the watch starts. `true`: anchored to the clock — offset 0 is local midnight, so segment boundaries always land on the same clock hours (use this for traditional named watches). |
+| `segments` | array | The shifts of one cycle, in order. They must be contiguous and gap-free: the first `offset` is 0 and each subsequent one equals the previous `offset + duration`. |
+| `segments[].offset` | number | Minutes from the start of the cycle. |
+| `segments[].duration` | number | Length of the shift in minutes (> 0). |
+| `segments[].teamIndex` | number | Which team stands it — 0-based, less than `teamCount`. |
+| `segments[].label` | string, optional | Nominal watch name, e.g. `"First Dog"`. |
+
+Two things the plugin handles for you: fairness math (a cycle can span several days —
+see the built-in dog-watch systems, which use an odd number of watches per day so teams
+rotate through every slot), and who goes first (the rotation is re-based at start time so
+the team listed first is on duty for the starting segment, even in anchored systems —
+`teamIndex` only defines the *pattern*, not which crew ends up where).
+
+### Generating a config with AI
+
+The format is simple enough that any LLM assistant (Claude, ChatGPT, …) can write one for
+you. Paste the table and example above — or this ready-made prompt — and describe your
+rotation in plain language:
+
+> Write a watch-schedule config JSON: one object with `teamCount`, `cycleDuration`,
+> optional `anchored`, and `segments` (`offset`, `duration`, `teamIndex`, optional
+> `label`), all times in minutes. Segments must be contiguous from offset 0 and sum
+> exactly to `cycleDuration`; `teamCount` is at most 5; `teamIndex` is 0-based and less than `teamCount`. Set
+> `anchored: true` only if the watches should land on fixed clock hours (offset 0 =
+> local midnight). My rotation: **three crew, classic Swedish system — night split
+> into two 3-hour watches (19–22, 22–01… adjust to taste), days in 4–5 hour blocks,
+> rotating so everyone gets each slot over three days.**
+>
+> Check your math, then output only the JSON.
+
+Paste the result into the entry's **Config JSON** field, save, and check the server log
+if the system doesn't appear in the pickers (validation errors are reported there).
 
 ## Dead man's switch integration
 
