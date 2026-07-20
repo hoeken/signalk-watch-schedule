@@ -253,6 +253,97 @@ test("start snaps an off-hour requested start time and ignores a bad team order"
   fs.rmSync(app.dir, { recursive: true, force: true });
 });
 
+test("start accepts custom teams for the watch and stop restores the defaults", async () => {
+  const app = makeApp();
+  const plugin = createPlugin(app);
+  plugin.start(OPTIONS); // 2 configured teams: Port, Starboard
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  // Three custom teams enable a 3-team rotation the 2-team config couldn't run.
+  const custom = [{ name: "Alice" }, { name: "Bob" }, { name: "Chloe" }];
+  const startRes = makeRes();
+  await router.routes["post /api/watch/start"](
+    { body: { systemId: "fixed-4-8", teams: custom, teamOrder: [2, 0, 1] } },
+    startRes,
+  );
+  assert.equal(startRes.statusCode, 200);
+  assert.deepEqual(startRes.body.state.teams, custom, "custom teams stored with the watch");
+  assert.equal(startRes.body.teams[0].name, "Chloe", "teamOrder applies to the custom teams");
+  assert.equal(startRes.body.schedule[0].teamName, "Chloe");
+
+  // Systems endpoint still reports the configured (2-team) defaults…
+  const sysRes = makeRes();
+  await router.routes["get /api/systems"]({}, sysRes);
+  assert.ok(sysRes.body.every((s) => s.teamCount === 2));
+  // …but honors an explicit teamCount, as the web UI requests while editing.
+  const sys3Res = makeRes();
+  await router.routes["get /api/systems"]({ query: { teamCount: "3" } }, sys3Res);
+  assert.ok(sys3Res.body.length > 0);
+  assert.ok(sys3Res.body.every((s) => s.teamCount === 3));
+
+  // Stopping clears the override — back to the configured defaults.
+  const stopRes = makeRes();
+  await router.routes["post /api/watch/stop"]({ body: {} }, stopRes);
+  assert.equal(stopRes.body.state.teams, null);
+  assert.deepEqual(stopRes.body.teams, TEAMS, "defaults apply again off watch");
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("start ignores invalid custom teams and falls back to the defaults", async () => {
+  const app = makeApp();
+  const plugin = createPlugin(app);
+  plugin.start(OPTIONS);
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  // A blank name invalidates the whole list; an empty array and a non-array do too.
+  for (const teams of [[{ name: "A" }, { name: "  " }], [], "nonsense"]) {
+    const res = makeRes();
+    await router.routes["post /api/watch/start"]({ body: { systemId: "fixed-4-4", teams } }, res);
+    assert.equal(res.statusCode, 200, "start still succeeds on the defaults");
+    assert.equal(res.body.state.teams, null, "invalid override not stored");
+    assert.equal(res.body.teams[0].name, "Port");
+  }
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("a watch with its own custom teams survives a config team-count change", async () => {
+  // Unlike a defaults-based watch (see the reconcile test below), a watch
+  // started with explicit teams carries them in state, so changing the
+  // configured defaults while the plugin is stopped must not stop it.
+  const app = makeApp();
+  const plugin = createPlugin(app);
+  plugin.start(OPTIONS); // 2 configured teams
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+  const custom = [{ name: "A" }, { name: "B" }, { name: "C" }, { name: "D" }];
+  const startRes = makeRes();
+  await router.routes["post /api/watch/start"](
+    { body: { systemId: "hoekens-dog-watch", teams: custom } },
+    startRes,
+  );
+  assert.equal(startRes.statusCode, 200);
+  plugin.stop();
+
+  const reloaded = createPlugin(app);
+  reloaded.start(OPTIONS); // still 2 configured teams ≠ the watch's 4
+  const reloadedRouter = makeRouter();
+  reloaded.registerWithRouter(reloadedRouter);
+  const stateRes = makeRes();
+  await reloadedRouter.routes["get /api/state"]({}, stateRes);
+  assert.equal(stateRes.body.state.onWatch, true, "custom-team watch keeps running");
+  assert.equal(stateRes.body.teams.length, 4);
+  assert.equal(stateRes.body.teams[0].name, "A");
+
+  reloaded.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
 test("stop clears the team order", async () => {
   const app = makeApp();
   const plugin = createPlugin(app);

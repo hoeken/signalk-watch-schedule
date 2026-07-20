@@ -1,11 +1,12 @@
 import { formatClock, formatDateTime, formatHourOption } from "../time.js";
-import TeamOrderList from "./TeamOrderList.jsx";
+import TeamEditor from "./TeamEditor.jsx";
 
 /**
  * Start/stop control for authenticated users. When idle, the captain picks the
- * rotation, the start hour (±12h of whole hours), and the team order — the
- * schedule preview updates live as they change any of them. When on watch, shows
- * the active system and a stop button.
+ * rotation, the start hour (±12h of whole hours), and the teams (rename,
+ * add/remove, reorder — applied to this watch only) — the schedule preview
+ * updates live as they change any of them. When on watch, shows the active
+ * system and a stop button.
  */
 export default function WatchControl({
   onWatch,
@@ -16,8 +17,9 @@ export default function WatchControl({
   selectedSystemId,
   onSelect,
   teams,
-  teamOrder,
-  onReorder,
+  onTeamsChange,
+  teamsCustomized,
+  onResetTeams,
   startAt,
   startOptions,
   onSelectStartAt,
@@ -91,19 +93,27 @@ export default function WatchControl({
         </select>
       </label>
 
-      {canStart && teams.length > 1 ? (
-        <div className="control__field">
-          <span className="control__field-title">Watch order</span>
-          <TeamOrderList teams={teams} order={teamOrder} onReorder={onReorder} disabled={busy} />
-          <div className="muted">
-            {teams[teamOrder[0]]?.name ?? "The first team"} starts at {formatClock(startAt)}; the rest follow in
-            order.
-          </div>
+      <div className="control__field">
+        <span className="control__field-title-row control__field-title-row--teams">
+          Watch teams
+          {teamsCustomized ? (
+            <button type="button" className="link" onClick={onResetTeams} disabled={busy}>
+              reset to defaults
+            </button>
+          ) : null}
+        </span>
+        <TeamEditor teams={teams} onChange={onTeamsChange} disabled={busy} />
+        <div className="muted">
+          {teams[0]?.name || "The first team"} starts at {formatClock(startAt)}; the rest follow in
+          order. Team changes apply to this watch only.
         </div>
-      ) : null}
+      </div>
 
       {canStart ? null : (
-        <div className="warn">No watch systems available — configure watch teams in the plugin settings.</div>
+        <div className="warn">
+          No watch systems available for {teams.length} team{teams.length === 1 ? "" : "s"} — add or
+          remove teams above, or adjust the Default Watch Teams in the plugin settings.
+        </div>
       )}
 
       <button className="btn btn--start" onClick={onStart} disabled={busy || !canStart}>

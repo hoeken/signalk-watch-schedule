@@ -393,6 +393,10 @@ textarea {
   font-size: 0.8rem;
 }
 
+.control__field-title-row--teams {
+  padding-bottom: 4px;
+}
+
 .control__active {
   font-size: 0.95rem;
 }
@@ -432,7 +436,7 @@ input {
   color: #fff;
 }
 
-/* ---- team order (draggable) ---- */
+/* ---- team editor (draggable, editable) ---- */
 .team-order {
   list-style: none;
   margin: 0;
@@ -447,7 +451,7 @@ input {
 
 .team-order__item {
   display: grid;
-  grid-template-columns: auto auto 1fr auto;
+  grid-template-columns: auto auto 1fr auto auto;
   align-items: center;
   gap: 10px;
   background: var(--panel-2);
@@ -455,7 +459,6 @@ input {
   border-left: 5px solid var(--muted);
   border-radius: 10px;
   padding: 9px 10px;
-  cursor: grab;
   transition:
     box-shadow 0.15s ease,
     opacity 0.15s ease;
@@ -471,15 +474,23 @@ input {
 }
 
 /* A CSS-drawn 2x3 dot grip — the old ⠿ braille glyph isn't in the MFD font and
-   rendered as a tofu box. Drawn with a tiled radial-gradient so it needs no font. */
+   rendered as a tofu box. Drawn with a tiled radial-gradient so it needs no font.
+   Dragging starts from this grip (not the whole row) so text selection in the
+   name inputs still works; padding widens the touch/click target without
+   growing the visible dot pattern. */
 .team-order__handle {
   align-self: center;
-  width: 8px;
-  height: 12px;
+  width: 18px; /* 8px of dots + 5px padding each side (border-box) */
+  height: 28px; /* 12px of dots + 8px padding top/bottom */
+  padding: 8px 5px;
   color: var(--muted);
   background-image: radial-gradient(currentColor 1px, transparent 1.5px);
   background-size: 4px 4px;
   background-position: center;
+  background-origin: content-box;
+  background-clip: content-box;
+  cursor: grab;
+  touch-action: none;
 }
 
 .team-order__num {
@@ -489,14 +500,15 @@ input {
   min-width: 1.1em;
 }
 
-.team-order__body {
+/* Inline name editing — sized down from the global input style to fit the row;
+   the text takes the team's position color, matching the schedule. */
+.team-order__name-input {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.team-order__name {
+  padding: 7px 9px;
+  font-size: 0.95rem;
   font-weight: 700;
+  border-radius: 8px;
+  background: var(--panel);
 }
 
 .team-order__moves {
@@ -522,6 +534,30 @@ input {
 }
 
 .team-order__btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Remove spans the row height (matching the ▲/▼ pair beside it). */
+.team-order__remove {
+  align-self: stretch;
+  height: auto;
+  font-size: 0.9rem;
+}
+
+.team-order__add {
+  width: 100%;
+  background: transparent;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.team-order__add:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }

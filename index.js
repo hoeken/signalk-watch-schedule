@@ -23,7 +23,7 @@ const PATH_CHECKS = [
   {
     path: "communication.crewNames",
     description:
-      "Optional - used as the default Watch Teams when the list above is empty. Publish crew via a plugin such as @meri-imperiumi/signalk-logbook.",
+      "Optional - used as the Default Watch Teams when none are configured. Publish crew via a plugin such as @meri-imperiumi/signalk-logbook.",
   },
   {
     path: "navigation.state",
@@ -72,7 +72,7 @@ export default function (app) {
   const updateStatus = (data) => {
     const count = data.teams.length;
     if (count < 2 || count > 5) {
-      app.setPluginError(`Watch needs 2–5 teams — ${count} configured. Update Watch Teams in the plugin settings.`);
+      app.setPluginError(`Watch needs 2–5 teams — ${count} configured. Adjust the teams in the web UI or the Default Watch Teams in the plugin settings.`);
       return;
     }
     app.setPluginStatus(data.state.onWatch ? `On watch (${data.state.systemId})` : "Idle — no watch in progress");
@@ -96,7 +96,9 @@ export default function (app) {
       },
       teams: {
         type: "array",
-        title: "Watch Teams",
+        title: "Default Watch Teams",
+        description:
+          "The default teams offered when starting a watch — teams can be added, removed, renamed, and reordered per watch in the web UI. Leave empty to use communication.crewNames when published.",
         default: [],
         items: {
           type: "object",

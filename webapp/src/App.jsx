@@ -10,13 +10,31 @@ const SHIFT_COUNT = 12;
 const HOUR_MS = 3_600_000;
 const START_WINDOW_HOURS = 12; // selectable start hours: now ± this many hours
 
+// Per-watch team edits (names, count, order) live in this browser only — the
+// server never persists them outside an active watch. Keeping them in
+// localStorage means stopping a watch to tweak something brings the same
+// custom teams back, instead of reverting to the configured defaults.
+const TEAMS_STORAGE_KEY = "signalk-watch-schedule.teams";
+
+/** The stored team draft, or null when absent/invalid (→ use server defaults). */
+function loadStoredTeams() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(TEAMS_STORAGE_KEY));
+    if (Array.isArray(parsed) && parsed.length > 0 && parsed.every((t) => t && typeof t.name === "string"))
+      return parsed.map((t) => ({ name: t.name }));
+  } catch {
+    /* corrupt or unavailable storage — fall back to the defaults */
+  }
+  return null;
+}
+
 export default function App() {
   const [view, setView] = useState(null); // composed { state, system, teams, ... }
   const [systems, setSystems] = useState([]);
   const [loginStatus, setLoginStatus] = useState(null);
   const [selectedSystemId, setSelectedSystemId] = useState(null);
   const [startAt, setStartAt] = useState(null); // chosen start hour; null = follow "now"
-  const [teamOrder, setTeamOrder] = useState(null); // permutation of team indices; null = natural
+  const [draftTeams, setDraftTeams] = useState(loadStoredTeams); // edited teams; null = server defaults
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -24,10 +42,23 @@ export default function App() {
   const [now, setNow] = useState(() => Date.now());
 
   const refresh = useCallback(async () => {
-    const [v, sys, login] = await Promise.all([api.getState(), api.getSystems(), api.getLoginStatus()]);
+    const [v, login] = await Promise.all([api.getState(), api.getLoginStatus()]);
     setView(v);
-    setSystems(sys);
     setLoginStatus(login);
+  }, []);
+
+  // Persist team edits so they survive a stop (and a reload); null clears the
+  // draft and falls back to the live server defaults.
+  const updateTeams = useCallback((next) => {
+    setDraftTeams(next);
+    try {
+      if (next)
+        localStorage.setItem(TEAMS_STORAGE_KEY, JSON.stringify(next));
+      else
+        localStorage.removeItem(TEAMS_STORAGE_KEY);
+    } catch {
+      /* storage unavailable — the draft just won't survive a reload */
+    }
   }, []);
 
   // Initial load + state polling + 1s ticker (drives countdowns and advances the
@@ -47,24 +78,27 @@ export default function App() {
   }, [refresh]);
 
   // `systems` (the available rotations) is auth-gated plugin data fetched
-  // outside the delta poll, and depends entirely on the team count
-  // (availableSystems(teams.length) server-side). When the crew changes via
-  // plugin config, the polled view.teams updates but `systems` would otherwise
-  // go stale: the picker would offer rotations for the old team count, the
-  // preview would resolve the schedule against them (showing the old teams),
-  // and /start would 400 on a systemId no longer available. Refetch on every
-  // team-count change to keep them in sync.
-  const teamCount = view?.teams?.length ?? 0;
+  // outside the delta poll, and depends entirely on the team count: the active
+  // watch's while on watch, the locally edited teams while idle. Adding or
+  // removing a team in the UI (or a crew change via plugin config) must
+  // refetch, or the picker would offer rotations for the old count, the
+  // preview would resolve the schedule against them, and /start would 400 on a
+  // systemId no longer available. Also keyed on loginStatus: the endpoint 401s
+  // for anonymous viewers, so a login needs to retry it.
+  const serverTeamCount = view?.teams?.length ?? 0;
+  const systemsTeamCount = view?.state?.onWatch
+    ? serverTeamCount
+    : (draftTeams?.length ?? serverTeamCount);
   useEffect(() => {
     let cancelled = false;
-    api.getSystems().then((sys) => {
+    api.getSystems(systemsTeamCount > 0 ? systemsTeamCount : undefined).then((sys) => {
       if (!cancelled)
         setSystems(sys);
     });
     return () => {
       cancelled = true;
     };
-  }, [teamCount]);
+  }, [systemsTeamCount, loginStatus]);
 
   // Default the picker to the active system (or first available) once loaded,
   // and keep the selection valid. A team-count change can drop the active
@@ -90,29 +124,27 @@ export default function App() {
 
   const state = view?.state ?? { onWatch: false, startedAt: null, systemId: null };
   const teams = view?.teams ?? [];
-  // The schedule is built for a crew of 2–5 teams; outside that range no valid
-  // rotation exists, so surface it rather than render a broken schedule.
-  const teamCountError =
-    teams.length < 2
-      ? `Need at least 2 watch teams${teams.length === 1 ? " (only 1 configured)" : ""} — add more in the plugin settings.`
-      : teams.length > 5
-        ? `Too many watch teams (${teams.length}) — the schedule supports at most 5.`
-        : null;
   const onWatch = state.onWatch;
+  // Idle, the control panel edits a local draft of the teams, seeded from the
+  // server defaults (plugin config, or communication.crewNames when the config
+  // is empty). The draft is what the preview renders and what /start sends.
+  const editTeams = draftTeams ?? teams;
+  // The schedule is built for a crew of 2–5 teams; outside that range no valid
+  // rotation exists, so surface it rather than render a broken schedule. On
+  // watch that's the active teams; idle it's the edited draft.
+  const effectiveTeams = onWatch ? teams : editTeams;
+  const teamCountError =
+    effectiveTeams.length < 2
+      ? `Need at least 2 watch teams${effectiveTeams.length === 1 ? " (only 1 configured)" : ""} — add more in the control panel or the plugin settings.`
+      : effectiveTeams.length > 5
+        ? `Too many watch teams (${effectiveTeams.length}) — the schedule supports at most 5.`
+        : null;
   // A watch can be scheduled to begin in the future: it's "on watch" but hasn't
   // started yet. Flagged separately so the UI reads as pending/grey rather than
   // active (server-side, watch.current is null and the schedule omits earlier
   // segments — see resolveSchedule).
   const notStarted = onWatch && !!state.startedAt && state.startedAt > now;
   const controllable = api.canControl(loginStatus);
-
-  // Off watch, the captain chooses the start hour and team order; both feed the
-  // live preview and the start request. The chosen order is a permutation of
-  // indices into `teams` — guarded so a stale order (after a team count change)
-  // falls back to the natural order rather than dropping a team.
-  const naturalOrder = teams.map((_, i) => i);
-  const order = teamOrder && teamOrder.length === teams.length ? teamOrder : naturalOrder;
-  const orderedTeams = order.map((i) => teams[i]);
 
   const startHour = startAt ?? snapToHour(now, "nearest");
   const floorHour = snapToHour(now, "down");
@@ -140,7 +172,7 @@ export default function App() {
       // yet. We recompute isCurrent ourselves rather than letting resolveSchedule
       // key off `now`, so the list still begins at the start hour.
       const begun = now >= startHour;
-      shifts = resolveSchedule(selected, orderedTeams, startHour, startHour, { count: SHIFT_COUNT })
+      shifts = resolveSchedule(selected, editTeams, startHour, startHour, { count: SHIFT_COUNT })
         .map((s) => ({ ...s, isCurrent: begun && now >= s.startTime && now < s.endTime }));
       preview = true;
     }
@@ -164,8 +196,15 @@ export default function App() {
     }
   };
 
+  // Send the edited teams (already in watch order) with the start; blank names
+  // fall back to a numbered placeholder so the server never rejects the list.
   const doStart = () =>
-    handleControl(() => api.startWatch(selectedSystemId, { startAt: startHour, teamOrder: order }));
+    handleControl(() =>
+      api.startWatch(selectedSystemId, {
+        startAt: startHour,
+        teams: editTeams.map((t, i) => ({ name: t.name.trim() || `Team ${i + 1}` })),
+      }),
+    );
   const doStop = () => handleControl(() => api.stopWatch());
   const doLogin = async (u, p, rememberMe) => {
     await api.login(u, p, rememberMe);
@@ -225,9 +264,10 @@ export default function App() {
               now={now}
               selectedSystemId={selectedSystemId}
               onSelect={setSelectedSystemId}
-              teams={teams}
-              teamOrder={order}
-              onReorder={setTeamOrder}
+              teams={editTeams}
+              onTeamsChange={updateTeams}
+              teamsCustomized={draftTeams != null}
+              onResetTeams={() => updateTeams(null)}
               startAt={startHour}
               startOptions={startOptions}
               onSelectStartAt={setStartAt}

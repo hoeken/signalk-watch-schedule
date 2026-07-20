@@ -56,13 +56,15 @@ export async function getState() {
 }
 
 /**
- * Watch systems available for the configured crew. Served by the auth-gated
- * plugin API, so anonymous viewers get nothing — that's fine, the system picker
- * is only shown to users who can control the watch (and are thus logged in).
+ * Watch systems available for a crew of `teamCount` teams (defaults to the
+ * server's configured teams when omitted). Served by the auth-gated plugin API,
+ * so anonymous viewers get nothing — that's fine, the system picker is only
+ * shown to users who can control the watch (and are thus logged in).
  */
-export async function getSystems() {
+export async function getSystems(teamCount) {
+  const query = Number.isInteger(teamCount) && teamCount > 0 ? `?teamCount=${teamCount}` : "";
   try {
-    return await getJSON(`${BASE}/api/systems`);
+    return await getJSON(`${BASE}/api/systems${query}`);
   } catch {
     return [];
   }
@@ -103,11 +105,12 @@ async function post(url, body) {
 
 /**
  * Start the watch. `opts.startAt` (epoch ms, snapped server-side to the hour)
- * and `opts.teamOrder` (a permutation of team indices, first on watch first)
- * are optional; omitting them starts now in the natural team order.
+ * and `opts.teams` (the teams for this watch, first on watch first — overrides
+ * the server's default teams) are optional; omitting them starts now with the
+ * default teams in their natural order.
  */
 export const startWatch = (systemId, opts = {}) =>
-  post(`${BASE}/api/watch/start`, { systemId, startAt: opts.startAt, teamOrder: opts.teamOrder });
+  post(`${BASE}/api/watch/start`, { systemId, startAt: opts.startAt, teams: opts.teams });
 export const stopWatch = () => post(`${BASE}/api/watch/stop`);
 
 /** Log in against SignalK; the auth cookie is then sent with future requests. */

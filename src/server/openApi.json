@@ -33,7 +33,7 @@
       "WatchState": {
         "type": "object",
         "description": "The plugin's authoritative runtime state. Everything else (system, schedule, current/next shift) is derived from this plus the plugin configuration.",
-        "required": ["onWatch", "startedAt", "systemId", "teamOrder"],
+        "required": ["onWatch", "startedAt", "systemId", "teamOrder", "teams"],
         "properties": {
           "onWatch": {
             "type": "boolean",
@@ -57,7 +57,15 @@
               "type": "integer",
               "minimum": 0
             },
-            "description": "Permutation of the configured teams' indices chosen for this watch — the team at position 0 is first on watch. Null means the natural configuration order."
+            "description": "Permutation of the effective teams' indices chosen for this watch — the team at position 0 is first on watch. Null means the natural order."
+          },
+          "teams": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/WatchTeam"
+            },
+            "description": "Per-watch team override chosen when the watch was started. Null means the default teams (plugin config, or communication.crewNames) are in effect. Cleared when the watch stops."
           }
         }
       },
@@ -215,7 +223,7 @@
             "items": {
               "$ref": "#/components/schemas/WatchTeam"
             },
-            "description": "Effective teams in watch order (the per-watch teamOrder already applied): position 0 is first on watch."
+            "description": "Effective teams in watch order (per-watch custom teams and teamOrder already applied): position 0 is first on watch."
           },
           "current": {
             "allOf": [{ "$ref": "#/components/schemas/ResolvedShift" }],
@@ -245,7 +253,7 @@
             "items": {
               "$ref": "#/components/schemas/WatchTeam"
             },
-            "description": "Effective teams in configuration order, after the config → communication.crewNames → default fallback."
+            "description": "Effective default teams in configuration order, after the config → communication.crewNames → default fallback. A watch may be started with different teams (see POST /watch/start)."
           },
           "defaultSystemId": {
             "type": "string",
@@ -355,7 +363,19 @@
       "get": {
         "tags": ["config"],
         "summary": "List available watch systems",
-        "description": "Returns the built-in rotation systems that require exactly the number of teams currently configured. Only these ids are accepted by `/watch/start`.",
+        "description": "Returns the built-in rotation systems that require exactly the given number of teams — `teamCount` when supplied, otherwise the number of default teams currently configured. A `/watch/start` request is accepted when its system id matches the team count it starts with.",
+        "parameters": [
+          {
+            "name": "teamCount",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "List systems for this team count instead of the configured default — used by the web UI when teams are added or removed before starting a watch."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Available systems returned successfully.",
@@ -377,7 +397,7 @@
       "post": {
         "tags": ["watch"],
         "summary": "Start (or restart) the watch",
-        "description": "Starts a watch with the requested rotation system. The start time is snapped to a whole local clock hour using the configured rounding mode and defaults to now; a team order may be supplied to pick who is first on watch. Calling this while a watch is already running restarts it with the new parameters. Requires authentication when server security is enabled.",
+        "description": "Starts a watch with the requested rotation system. The start time is snapped to a whole local clock hour using the configured rounding mode and defaults to now; a team order may be supplied to pick who is first on watch; custom teams may be supplied to override the configured defaults for this watch. Every parameter is optional and falls back to the plugin defaults. Calling this while a watch is already running restarts it with the new parameters. Requires authentication when server security is enabled.",
         "requestBody": {
           "required": false,
           "content": {
@@ -400,14 +420,24 @@
                       "type": "integer",
                       "minimum": 0
                     },
-                    "description": "Permutation of the configured teams' indices; the team at position 0 is first on watch. Ignored unless it is a valid permutation. Defaults to configuration order."
+                    "description": "Permutation of the effective teams' indices; the team at position 0 is first on watch. Ignored unless it is a valid permutation. Defaults to the natural order."
+                  },
+                  "teams": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/WatchTeam"
+                    },
+                    "description": "Custom teams for this watch, in watch order (position 0 first on watch). Overrides the configured default teams; the systemId must match this team count. Ignored unless it is a non-empty array of teams with non-empty names. Defaults to the configured teams (or communication.crewNames)."
                   }
                 }
               },
               "example": {
                 "systemId": "fixed-4-4",
                 "startAt": 1752994800000,
-                "teamOrder": [1, 0]
+                "teams": [
+                  { "name": "Port Watch" },
+                  { "name": "Starboard Watch" }
+                ]
               }
             }
           }
@@ -442,7 +472,7 @@
       "post": {
         "tags": ["watch"],
         "summary": "Stop the watch",
-        "description": "Stops the running watch and clears the per-watch team order. Idempotent — succeeds whether or not a watch is running. Requires authentication when server security is enabled.",
+        "description": "Stops the running watch and clears the per-watch team order and custom teams, so the default teams apply again. Idempotent — succeeds whether or not a watch is running. Requires authentication when server security is enabled.",
         "responses": {
           "200": {
             "$ref": "#/components/responses/WatchData"

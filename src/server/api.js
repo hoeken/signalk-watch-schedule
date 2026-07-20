@@ -3,11 +3,15 @@
  * /plugins/signalk-watch-schedule, so paths here are prefixed with /api.
  *
  *   GET  /api/state         current state + resolved schedule        (read)
- *   GET  /api/config        teams + defaults                         (read)
- *   GET  /api/systems       available watch systems for this crew    (read)
- *   POST /api/watch/start   { systemId, startAt?, teamOrder? } → start (write)
- *                           startAt snaps to the hour (defaults to now);
- *                           teamOrder picks which team is first on watch.
+ *   GET  /api/config        default teams + defaults                 (read)
+ *   GET  /api/systems       available watch systems                  (read)
+ *                           ?teamCount=N for a team count other than the
+ *                           current default (the web UI edits teams locally).
+ *   POST /api/watch/start   { systemId?, startAt?, teamOrder?, teams? }
+ *                           → start (write). startAt snaps to the hour
+ *                           (defaults to now); teamOrder picks which team is
+ *                           first on watch; teams overrides the default teams
+ *                           for this watch. All optional — defaults apply.
  *   POST /api/watch/stop    stop the watch                           (write)
  */
 
@@ -65,8 +69,12 @@ export function registerRoutes(router, ctx) {
 
   router.get("/api/systems", (req, res) => {
     const options = getOptions() || {};
-    const teams = resolveTeams(app, options);
-    res.json(availableSystems(teams.length));
+    // The web UI can add/remove teams before starting a watch, so it may ask
+    // for the systems matching its edited team count rather than the default.
+    const requested = Number.parseInt(req.query && req.query.teamCount, 10);
+    const count =
+      Number.isInteger(requested) && requested > 0 ? requested : resolveTeams(app, options).length;
+    res.json(availableSystems(count));
   });
 
   router.post("/api/watch/start", (req, res) => {
@@ -78,12 +86,14 @@ export function registerRoutes(router, ctx) {
 
     const options = getOptions() || {};
     // startAt: the UI offers ±12h of whole hours; teamOrder: which team is
-    // first on watch. Both are validated in startWatch and fall back to
-    // sensible defaults when absent or invalid.
+    // first on watch; teams: per-watch override of the default teams. All are
+    // validated in startWatch and fall back to sensible defaults when absent
+    // or invalid.
     const result = startWatch(store, options, {
       systemId: req.body && req.body.systemId,
       startAt: req.body && req.body.startAt,
       teamOrder: req.body && req.body.teamOrder,
+      teams: req.body && req.body.teams,
     }, app);
     if (!result.ok) {
       return res.status(400).json({ error: result.error });

@@ -36,7 +36,30 @@ function readCrewNames(app) {
 }
 
 /**
- * The teams to schedule, applying the config → crewNames → default fallback.
+ * Validate a client-supplied team list (the web UI's per-watch teams override).
+ * Returns a cleaned copy ([{ name }] with trimmed names) or null when the input
+ * is not a non-empty array of teams with non-empty string names — callers fall
+ * back to the configured defaults, so a bad override can never break /start.
+ * @param {unknown} teams
+ * @returns {import('../core/types.js').WatchTeam[]|null}
+ */
+export function sanitizeTeams(teams) {
+  if (!Array.isArray(teams) || teams.length === 0)
+    return null;
+  const cleaned = [];
+  for (const team of teams) {
+    const name = team && typeof team.name === "string" ? team.name.trim() : "";
+    if (name === "")
+      return null;
+    cleaned.push({ name });
+  }
+  return cleaned;
+}
+
+/**
+ * The default teams to schedule, applying the config → crewNames → default
+ * fallback. A running watch may carry its own per-watch override (see
+ * startWatch); this is the list used when it doesn't.
  * @param {object} app SignalK app handle (used to read communication.crewNames)
  * @param {object} options plugin config
  * @returns {import('../core/types.js').WatchTeam[]}

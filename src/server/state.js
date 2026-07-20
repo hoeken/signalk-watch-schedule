@@ -3,20 +3,22 @@
  *
  * Only the small, authoritative runtime flags live here — whether the boat is
  * on watch, when the watch began (snapped to the hour), which system is active,
- * and the chosen team order for this watch. Team/rotation definitions live
+ * and the per-watch team choices. Default team and rotation definitions live
  * in plugin config, not here.
  *
- * `teamOrder` is a permutation of the configured teams' indices (or null for the
- * natural config order): the team at position 0 is first on watch.
+ * `teamOrder` is a permutation of the effective teams' indices (or null for the
+ * natural order): the team at position 0 is first on watch. `teams` is a
+ * per-watch override of the default teams (or null to use the defaults) — it
+ * persists with an active watch and is cleared on stop.
  *
- * @typedef {{ onWatch: boolean, startedAt: number|null, systemId: string|null, teamOrder: number[]|null }} WatchState
+ * @typedef {{ onWatch: boolean, startedAt: number|null, systemId: string|null, teamOrder: number[]|null, teams: import('../core/types.js').WatchTeam[]|null }} WatchState
  */
 
 import fs from "node:fs";
 import path from "node:path";
 
 /** @type {WatchState} */
-const DEFAULT_STATE = { onWatch: false, startedAt: null, systemId: null, teamOrder: null };
+const DEFAULT_STATE = { onWatch: false, startedAt: null, systemId: null, teamOrder: null, teams: null };
 
 /**
  * @param {object} app SignalK app object (provides getDataDirPath + logging).

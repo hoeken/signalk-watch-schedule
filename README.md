@@ -7,8 +7,10 @@ color-coded, responsive schedule on any device.
 
 ## Features
 
-- **Watch teams** configured in the plugin settings — name each for the watch or the crew standing it.
-- **Built-in rotation systems**: 4-on/4-off, 3-on/3-off, 6-on/6-off, and Royal Navy dog watches.
+- **Watch teams** — default teams come from the plugin settings (or `communication.crewNames`),
+  and can be renamed, added, removed, and reordered per watch right in the web UI.
+- **Built-in rotation systems**: 4-on/4-off, 3-on/3-off, 6-on/6-off, and Royal Navy dog watches —
+  the picker offers the rotations that fit your team count.
 - **Whole-hour starts** — the schedule always begins on a clean clock hour, with a start-time
   picker covering ±12 hours so you can sync a watch that began earlier or schedule one ahead.
 - **Pick who's first** — drag (or nudge with ▲/▼) the watch teams into order; the team on top
@@ -48,12 +50,15 @@ Then enable the plugin in **Server → Plugin Config** and open it from **Webapp
 
 | Setting | Description |
 |---|---|
-| **Watch Teams** | One entry per watch, in rotation order. Name it for the watch (e.g. Port Watch) or the crew member(s) standing it. |
+| **Default Watch Teams** | The default teams offered when starting a watch, in rotation order. Name each for the watch (e.g. Port Watch) or the crew member(s) standing it. Leave empty to use `communication.crewNames` when published. |
 | **Default Watch System** | Rotation pre-selected when starting a watch. |
 | **Start-time rounding** | How the start snaps to the hour: `nearest` / `up` / `down`. |
 | **Shifts to publish** | How many upcoming shifts to publish and show. |
 
-Only systems whose required team count fits your configured teams are offered (e.g. a
+These teams are only the *defaults*: the web UI can add, remove, rename, and reorder teams
+before starting a watch. Those per-watch edits are kept in the browser (so they come back
+after stopping a watch to tweak something) — only an active watch's teams are stored on the
+server. Only systems whose required team count matches the current teams are offered (e.g. a
 three-team rotation appears once you have three teams).
 
 ## SignalK paths
@@ -64,7 +69,7 @@ three-team rotation appears once you have three teams).
 | `watch.state.startedAt` | Epoch ms the watch began (whole hour). |
 | `watch.state.systemId` | Active rotation id. |
 | `watch.system` | Full active system definition. |
-| `watch.teams` | Configured watch teams, in rotation order. |
+| `watch.teams` | Watch teams, in rotation order (per-watch overrides applied). |
 | `watch.current` / `watch.next` | Active and upcoming shift. |
 | `watch.schedule` | Ordered upcoming shifts, current first. |
 
@@ -75,8 +80,8 @@ Base: `/plugins/signalk-watch-schedule/api`
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | `/state` | read | Current state + resolved schedule. |
-| GET | `/config` | read | Teams + defaults. |
-| GET | `/systems` | read | Available watch systems. |
+| GET | `/config` | read | Default teams + defaults. |
+| GET | `/systems` | read | Available watch systems (`?teamCount=N` for a specific team count). |
 | POST | `/watch/start` | write | Start (or restart) the watch. |
 | POST | `/watch/stop` | write | Stop the watch. |
 
@@ -85,13 +90,15 @@ The machine-readable OpenAPI spec is browsable in the SignalK admin UI under
 
 ### Starting and stopping the watch
 
-`POST /watch/start` takes an optional JSON body:
+`POST /watch/start` takes an optional JSON body — every field is optional and falls back
+to the plugin defaults:
 
 | Field | Type | Description |
 |---|---|---|
 | `systemId` | string | Which rotation to run — one of the ids from `GET /systems`. Defaults to the configured default system. |
 | `startAt` | number | Start time in epoch ms, snapped to a whole clock hour (per the configured rounding). May be in the past or future. Defaults to now. |
-| `teamOrder` | number[] | Permutation of team indices; the team at position 0 is first on watch. Defaults to configuration order. |
+| `teams` | {name}[] | Custom teams for this watch, in watch order (position 0 first on watch). Overrides the default teams; the `systemId` must match this team count. Stored with the watch and cleared on stop. Defaults to the configured teams (or `communication.crewNames`). |
+| `teamOrder` | number[] | Permutation of team indices; the team at position 0 is first on watch. Defaults to the natural order. |
 
 Both endpoints return the full watch view (the same data published under `watch.*`),
 so a `200` response means the change took effect. Starting while a watch is already
@@ -104,6 +111,11 @@ BASE=http://localhost:3000/plugins/signalk-watch-schedule/api
 curl -X POST "$BASE/watch/start" \
   -H 'Content-Type: application/json' \
   -d '{"systemId": "fixed-4-4", "teamOrder": [1, 0]}'
+
+# Start a three-team rotation with custom teams for this watch only
+curl -X POST "$BASE/watch/start" \
+  -H 'Content-Type: application/json' \
+  -d '{"systemId": "fixed-4-8", "teams": [{"name": "Alice"}, {"name": "Bob"}, {"name": "Chloe"}]}'
 
 # Stop the watch
 curl -X POST "$BASE/watch/stop"

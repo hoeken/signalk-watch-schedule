@@ -9,7 +9,7 @@
  */
 
 import { resolveSchedule, getSystemById, availableSystems, orderTeams } from "../core/index.js";
-import { resolveTeams } from "./teams.js";
+import { resolveTeams, sanitizeTeams } from "./teams.js";
 
 /**
  * Assemble the full watch view.
@@ -19,7 +19,9 @@ import { resolveTeams } from "./teams.js";
  * @param {object} [app] SignalK app handle, used to fall back to communication.crewNames
  */
 export function buildWatchData(state, options, now, app) {
-  const baseTeams = resolveTeams(app, options);
+  // An active watch may carry its own teams (the web UI's per-watch override,
+  // stored at start and cleared on stop); otherwise the defaults apply.
+  const baseTeams = (state.onWatch && sanitizeTeams(state.teams)) || resolveTeams(app, options);
   // Apply the chosen watch order so position 0 is first on watch. Both the
   // resolved schedule and the published `watch.teams` use this order, and the
   // webapp recomputes from the same order — they cannot disagree.
@@ -49,7 +51,7 @@ const META = {
   "watch.state.startedAt": "Epoch ms the current watch began (snapped to a whole hour)",
   "watch.state.systemId": "Id of the active watch rotation system",
   "watch.system": "Full definition of the active watch system",
-  "watch.teams": "Configured watch teams, in rotation order",
+  "watch.teams": "Watch teams, in rotation order (per-watch overrides applied)",
   "watch.current": "The shift currently on duty",
   "watch.next": "The next shift coming on duty",
   "watch.schedule": "Ordered list of upcoming shifts, starting with the current one",
