@@ -8,9 +8,9 @@
 
 /** @type {string[]} */
 export const PALETTE = [
+  "#dc2626", // red (port)
+  "#16a34a", // green (starboard)
   "#2563eb", // blue
-  "#dc2626", // red
-  "#16a34a", // green
   "#d97706", // amber
   "#7c3aed", // violet
   "#0891b2", // cyan
