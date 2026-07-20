@@ -628,9 +628,13 @@ test("a custom system is offered, startable, published, and survives a restart",
   await router.routes["get /api/systems"]({}, sysRes);
   assert.ok(sysRes.body.some((s) => s.id === "day-night"), "custom system listed");
 
-  // …startable, with the resolved schedule using its segments…
+  // …startable, with the resolved schedule using its segments. Pin startAt to
+  // the top of the current hour: a bare start snaps "now" to the *nearest*
+  // hour, which past half-past lands in the future and makes `current` null.
+  const startAt = new Date();
+  startAt.setMinutes(0, 0, 0);
   const startRes = makeRes();
-  await router.routes["post /api/watch/start"]({ body: { systemId: "day-night" } }, startRes);
+  await router.routes["post /api/watch/start"]({ body: { systemId: "day-night", startAt: startAt.getTime() } }, startRes);
   assert.equal(startRes.statusCode, 200);
   assert.equal(startRes.body.system.id, "day-night");
   assert.equal(startRes.body.system.builtin, false);
