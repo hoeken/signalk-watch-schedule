@@ -487,8 +487,10 @@ input {
    growing the visible dot pattern. */
 .team-order__handle {
   align-self: center;
-  width: 18px; /* 8px of dots + 5px padding each side (border-box) */
-  height: 28px; /* 12px of dots + 8px padding top/bottom */
+  width: 18px;
+  /* 8px of dots + 5px padding each side (border-box) */
+  height: 28px;
+  /* 12px of dots + 8px padding top/bottom */
   padding: 8px 5px;
   color: var(--muted);
   background-image: radial-gradient(currentColor 1px, transparent 1.5px);
@@ -573,10 +575,9 @@ input {
 .deadman-frame {
   display: block;
   width: 100%;
-  height: 320px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel-2);
+  height: 160px;
+  border: none;
+  background: transparent;
 }
 
 .login__title {
