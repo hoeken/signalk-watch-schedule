@@ -1,3 +1,9 @@
+# v1.1.1
+
+## 🐛 Fixes
+
+- Corrected the recommended e-ink label plugin's package name to [@rhizomatics/signalk-einklabel-plugin](https://www.npmjs.com/package/@rhizomatics/signalk-einklabel-plugin), so it resolves correctly in the SignalK app store (thanks @jrb!)
+
 # v1.1.0
 
 ## ✨ Improvements
