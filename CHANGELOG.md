@@ -1,10 +1,10 @@
-# Unreleased
+# v1.2.0
 
 ## ✨ Improvements
 
-- The dead man's switch integration now uses [signalk-dead-mans-switch](https://www.npmjs.com/package/signalk-dead-mans-switch)'s new in-process API (requires v0.6.0 or newer), announced via SignalK's PropertyValues mechanism, instead of POSTing to its REST API on the local server. No HTTP and no authentication involved — the **Dead man's switch access token** setting and the automatic access-request approval flow are gone, and the integration now works identically with or without server security. A token left over in a saved config is simply ignored
-- Plugin start order no longer matters for the integration: an arm/disarm requested before the switch plugin has announced its API is delivered as soon as it appears, and a running watch re-arms the switch when the switch plugin (re)starts mid-watch
-- New **Disable the dead man's switch during the day** setting (on by default): while `environment.mode` is `day` the switch stays disarmed even with a watch running — check-ins happen only at night, with nightfall mid-watch arming the switch and daybreak disarming it. Requires `environment.mode` (published e.g. by signalk-derived-data, and now surfaced in the settings' path checks); when it isn't published, the switch stays armed for the whole watch as before
+- The dead man's switch integration no longer needs an access token: it now talks to [signalk-dead-mans-switch](https://www.npmjs.com/package/signalk-dead-mans-switch) (v0.6.0 or newer) directly instead of through its REST API, so the token setting and approval step are gone and the integration works the same with or without server security
+- The integration is more resilient: plugin start order no longer matters, and if the switch plugin restarts mid-watch the switch is re-armed automatically
+- New **Disable the dead man's switch during the day** setting (on by default): check-ins are only required at night — the switch arms at nightfall and disarms at daybreak. Requires `environment.mode` (published e.g. by signalk-derived-data); when it isn't available, the switch stays armed for the whole watch as before
 
 # v1.1.1
 
