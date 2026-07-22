@@ -1,3 +1,10 @@
+# Unreleased
+
+## ✨ Improvements
+
+- The dead man's switch integration now uses [signalk-dead-mans-switch](https://www.npmjs.com/package/signalk-dead-mans-switch)'s new in-process API (requires v0.6.0 or newer), announced via SignalK's PropertyValues mechanism, instead of POSTing to its REST API on the local server. No HTTP and no authentication involved — the **Dead man's switch access token** setting and the automatic access-request approval flow are gone, and the integration now works identically with or without server security. A token left over in a saved config is simply ignored
+- Plugin start order no longer matters for the integration: an arm/disarm requested before the switch plugin has announced its API is delivered as soon as it appears, and a running watch re-arms the switch when the switch plugin (re)starts mid-watch
+
 # v1.1.1
 
 ## 🐛 Fixes

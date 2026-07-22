@@ -7,7 +7,7 @@ import path from "node:path";
 import { buildWatchData } from "../src/server/publisher.js";
 import { parseCustomSystems } from "../src/server/custom-systems.js";
 import { resolveTeams } from "../src/server/teams.js";
-import { requestDeadmanToken } from "../src/server/deadman.js";
+import { DEADMAN_API_PROPERTY } from "../src/server/deadman.js";
 import createPlugin from "../index.js";
 
 const TEAMS = [
@@ -99,6 +99,15 @@ function makeApp(crewNames) {
   const deltas = [];
   // Minimal Bacon-like stream: tests push navigation.state values via navState.
   let stateCb = null;
+  // PropertyValues mock with the real server's semantics: subscribers get the
+  // full emission history — entries wrapped { timestamp, setter, name, value },
+  // seeded with undefined — synchronously on subscribe and on every emission.
+  const propertyValues = new Map();
+  const pvTuple = (name) => {
+    if (!propertyValues.has(name))
+      propertyValues.set(name, { history: [undefined], subs: new Set() });
+    return propertyValues.get(name);
+  };
   const app = {
     dir,
     deltas,
@@ -120,6 +129,18 @@ function makeApp(crewNames) {
           return () => { stateCb = null; };
         },
       }),
+    },
+    emitPropertyValue: (name, value) => {
+      const t = pvTuple(name);
+      t.history.push({ timestamp: Date.now(), setter: "test", name, value });
+      for (const cb of t.subs)
+        cb(t.history);
+    },
+    onPropertyValues: (name, cb) => {
+      const t = pvTuple(name);
+      t.subs.add(cb);
+      cb(t.history);
+      return () => t.subs.delete(cb);
     },
     // no securityStrategy → security disabled → writes allowed
   };
@@ -728,33 +749,25 @@ test("the config schema lists systems as \"[X Teams] name\" including customs", 
 const DEADMAN_OPTIONS = { ...OPTIONS, enableDeadMansSwitch: true };
 
 /**
- * Replace global fetch for this test (auto-restored) and record the arm/disarm
- * calls the dead man's switch integration makes. The token-acquisition flow's
- * own traffic (e.g. its /skServer/loginStatus probe on plugin start) is
- * answered with "security off" and kept out of `calls`.
+ * Announce a fake switch in-process API (as signalk-dead-mans-switch >= 0.6.0
+ * does once on start, via PropertyValues) and record the arm/disarm calls the
+ * integration makes on it.
  */
-function mockFetch(t, { ok = true, reject = false } = {}) {
+function mockDeadmanApi(app, { throwing = false } = {}) {
   const calls = [];
-  t.mock.method(globalThis, "fetch", (url, opts) => {
-    if (!String(url).includes("/plugins/")) {
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: async () => ({ authenticationRequired: false }),
-        text: async () => "",
-      });
-    }
-    calls.push({ url: String(url), method: opts && opts.method, headers: (opts && opts.headers) || {} });
-    if (reject)
-      return Promise.reject(new Error("connect ECONNREFUSED"));
-    return Promise.resolve({ ok, status: ok ? 200 : 500, text: async () => '{"ok":true}' });
-  });
+  const record = (action) => (reason) => {
+    calls.push({ action, reason });
+    if (throwing)
+      throw new Error("boom");
+    return true;
+  };
+  app.emitPropertyValue(DEADMAN_API_PROPERTY, { arm: record("arm"), disarm: record("disarm") });
   return calls;
 }
 
-test("start arms and stop disarms the dead man's switch when enabled", async (t) => {
-  const calls = mockFetch(t);
+test("start arms and stop disarms the dead man's switch when enabled", async () => {
   const app = makeApp();
+  const calls = mockDeadmanApi(app);
   const plugin = createPlugin(app);
   plugin.start(DEADMAN_OPTIONS);
   const router = makeRouter();
@@ -764,72 +777,21 @@ test("start arms and stop disarms the dead man's switch when enabled", async (t)
   await router.routes["post /api/watch/start"]({ body: {} }, startRes);
   assert.equal(startRes.statusCode, 200);
   assert.equal(calls.length, 1);
-  assert.match(calls[0].url, /\/plugins\/signalk-dead-mans-switch\/arm$/);
-  assert.equal(calls[0].method, "POST");
+  assert.equal(calls[0].action, "arm");
+  assert.match(calls[0].reason, /watch started/, "a reason is passed for the switch's debug log");
 
   const stopRes = makeRes();
   await router.routes["post /api/watch/stop"]({ body: {} }, stopRes);
   assert.equal(calls.length, 2);
-  assert.match(calls[1].url, /\/plugins\/signalk-dead-mans-switch\/disarm$/);
+  assert.equal(calls[1].action, "disarm");
 
   plugin.stop();
   fs.rmSync(app.dir, { recursive: true, force: true });
 });
 
-test("dead man's switch requests use the server's real port (getExternalPort)", async (t) => {
-  const calls = mockFetch(t);
+test("dead man's switch integration is off by default", async () => {
   const app = makeApp();
-  // Standard Pi installs are systemd socket-activated: settings.json carries
-  // no port, the real one is only reachable via config.getExternalPort().
-  app.config = { settings: { ssl: false }, getExternalPort: () => 80 };
-  const plugin = createPlugin(app);
-  plugin.start(DEADMAN_OPTIONS);
-  const router = makeRouter();
-  plugin.registerWithRouter(router);
-
-  await router.routes["post /api/watch/start"]({ body: {} }, makeRes());
-  assert.equal(calls.length, 1);
-  assert.match(calls[0].url, /^http:\/\/127\.0\.0\.1:80\/plugins\//);
-
-  plugin.stop();
-  fs.rmSync(app.dir, { recursive: true, force: true });
-});
-
-test("dead man's switch requests carry the configured access token", async (t) => {
-  const calls = mockFetch(t);
-  const app = makeApp();
-  const plugin = createPlugin(app);
-  plugin.start({ ...DEADMAN_OPTIONS, deadMansSwitchToken: " secret-token " });
-  const router = makeRouter();
-  plugin.registerWithRouter(router);
-
-  await router.routes["post /api/watch/start"]({ body: {} }, makeRes());
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].headers.Authorization, "Bearer secret-token", "token sent, trimmed");
-
-  plugin.stop();
-  fs.rmSync(app.dir, { recursive: true, force: true });
-});
-
-test("dead man's switch requests send no auth header without a token", async (t) => {
-  const calls = mockFetch(t);
-  const app = makeApp();
-  const plugin = createPlugin(app);
-  plugin.start(DEADMAN_OPTIONS);
-  const router = makeRouter();
-  plugin.registerWithRouter(router);
-
-  await router.routes["post /api/watch/start"]({ body: {} }, makeRes());
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].headers.Authorization, undefined);
-
-  plugin.stop();
-  fs.rmSync(app.dir, { recursive: true, force: true });
-});
-
-test("dead man's switch integration is off by default", async (t) => {
-  const calls = mockFetch(t);
-  const app = makeApp();
+  const calls = mockDeadmanApi(app);
   const plugin = createPlugin(app);
   plugin.start(OPTIONS); // enableDeadMansSwitch not set
   const router = makeRouter();
@@ -837,14 +799,51 @@ test("dead man's switch integration is off by default", async (t) => {
 
   await router.routes["post /api/watch/start"]({ body: {} }, makeRes());
   await router.routes["post /api/watch/stop"]({ body: {} }, makeRes());
-  assert.equal(calls.length, 0, "no dead man's switch requests when disabled");
+  assert.equal(calls.length, 0, "no dead man's switch calls when disabled");
 
   plugin.stop();
   fs.rmSync(app.dir, { recursive: true, force: true });
 });
 
-test("an unreachable dead man's switch does not break start or stop", async (t) => {
-  mockFetch(t, { reject: true });
+test("a missing or broken dead man's switch does not break start or stop", async () => {
+  // No API announced at all (plugin missing/disabled/too old)…
+  const missing = makeApp();
+  const plugin = createPlugin(missing);
+  plugin.start(DEADMAN_OPTIONS);
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  const startRes = makeRes();
+  await router.routes["post /api/watch/start"]({ body: {} }, startRes);
+  assert.equal(startRes.statusCode, 200, "watch starts even without the switch");
+  assert.equal(startRes.body.state.onWatch, true);
+
+  const stopRes = makeRes();
+  await router.routes["post /api/watch/stop"]({ body: {} }, stopRes);
+  assert.equal(stopRes.statusCode, 200);
+  assert.equal(stopRes.body.state.onWatch, false);
+  plugin.stop();
+  fs.rmSync(missing.dir, { recursive: true, force: true });
+
+  // …and an announced API whose methods throw is just as harmless.
+  const broken = makeApp();
+  const calls = mockDeadmanApi(broken, { throwing: true });
+  const plugin2 = createPlugin(broken);
+  plugin2.start(DEADMAN_OPTIONS);
+  const router2 = makeRouter();
+  plugin2.registerWithRouter(router2);
+
+  const res = makeRes();
+  await router2.routes["post /api/watch/start"]({ body: {} }, res);
+  assert.equal(res.statusCode, 200, "watch starts even if the switch API throws");
+  assert.equal(calls.length, 1, "the throwing arm was attempted");
+  plugin2.stop();
+  fs.rmSync(broken.dir, { recursive: true, force: true });
+});
+
+test("an arm requested before the switch announces its API is delivered on announcement", async () => {
+  // Plugin start order is not guaranteed: the watch starts while the switch
+  // plugin hasn't announced its API yet — the arm must not be lost.
   const app = makeApp();
   const plugin = createPlugin(app);
   plugin.start(DEADMAN_OPTIONS);
@@ -853,21 +852,55 @@ test("an unreachable dead man's switch does not break start or stop", async (t) 
 
   const startRes = makeRes();
   await router.routes["post /api/watch/start"]({ body: {} }, startRes);
-  assert.equal(startRes.statusCode, 200, "watch starts even if the switch is unreachable");
-  assert.equal(startRes.body.state.onWatch, true);
+  assert.equal(startRes.statusCode, 200);
 
-  const stopRes = makeRes();
-  await router.routes["post /api/watch/stop"]({ body: {} }, stopRes);
-  assert.equal(stopRes.statusCode, 200);
-  assert.equal(stopRes.body.state.onWatch, false);
+  const calls = mockDeadmanApi(app); // the switch plugin starts late
+  assert.equal(calls.length, 1, "the deferred arm is delivered");
+  assert.equal(calls[0].action, "arm");
 
   plugin.stop();
   fs.rmSync(app.dir, { recursive: true, force: true });
 });
 
-test("auto-watch arms and disarms the dead man's switch when enabled", async (t) => {
-  const calls = mockFetch(t);
+test("a running watch re-arms the switch when its API (re)announces", async () => {
   const app = makeApp();
+  const calls = mockDeadmanApi(app);
+  const plugin = createPlugin(app);
+  plugin.start(DEADMAN_OPTIONS);
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+  await router.routes["post /api/watch/start"]({ body: {} }, makeRes());
+  assert.deepEqual(calls.map((c) => c.action), ["arm"]);
+
+  // The switch plugin restarts mid-watch and announces a fresh API: re-arm it.
+  const reannounced = mockDeadmanApi(app);
+  assert.deepEqual(reannounced.map((c) => c.action), ["arm"]);
+
+  // A server restart with the watch persisted arms on plugin start too (the
+  // announcement is replayed from the PropertyValues history on subscribe).
+  plugin.stop();
+  const reloaded = createPlugin(app);
+  reloaded.start(DEADMAN_OPTIONS);
+  assert.deepEqual(reannounced.map((c) => c.action), ["arm", "arm"]);
+
+  reloaded.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("no watch running means no arm/disarm on announcement (a hand-armed switch stays armed)", () => {
+  const app = makeApp();
+  const plugin = createPlugin(app);
+  plugin.start(DEADMAN_OPTIONS); // idle — no watch
+  const calls = mockDeadmanApi(app);
+  assert.equal(calls.length, 0, "an idle watch plugin leaves the switch alone");
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("auto-watch arms and disarms the dead man's switch when enabled", async () => {
+  const app = makeApp();
+  const calls = mockDeadmanApi(app);
   const plugin = createPlugin(app);
   plugin.start({ ...AUTO_OPTIONS, enableDeadMansSwitch: true });
   plugin.registerWithRouter(makeRouter());
@@ -875,19 +908,19 @@ test("auto-watch arms and disarms the dead man's switch when enabled", async (t)
   app.navState("anchored"); // baseline
   app.navState("sailing"); // rest → under way: start + arm
   assert.equal(calls.length, 1);
-  assert.match(calls[0].url, /\/arm$/);
+  assert.equal(calls[0].action, "arm");
 
   app.navState("moored"); // under way → rest: stop + disarm
   assert.equal(calls.length, 2);
-  assert.match(calls[1].url, /\/disarm$/);
+  assert.equal(calls[1].action, "disarm");
 
   plugin.stop();
   fs.rmSync(app.dir, { recursive: true, force: true });
 });
 
-test("reconciling away a stale watch on start disarms the dead man's switch", async (t) => {
-  const calls = mockFetch(t);
+test("reconciling away a stale watch on start disarms the dead man's switch", async () => {
   const app = makeApp();
+  const calls = mockDeadmanApi(app);
   const fourTeams = Array.from({ length: 4 }, (_, i) => ({ name: `T${i}` }));
 
   const plugin = createPlugin(app);
@@ -903,238 +936,9 @@ test("reconciling away a stale watch on start disarms the dead man's switch", as
   const reloaded = createPlugin(app);
   reloaded.start(DEADMAN_OPTIONS);
   assert.equal(calls.length, 2);
-  assert.match(calls[1].url, /\/disarm$/);
+  assert.equal(calls[1].action, "disarm");
 
   reloaded.stop();
-  fs.rmSync(app.dir, { recursive: true, force: true });
-});
-
-// --- dead man's switch: access request flow (token acquisition) ---
-
-/** Poll until `fn()` is truthy (the access-request flow is timer-driven). */
-async function until(fn, timeoutMs = 2000) {
-  const start = Date.now();
-  while (!fn()) {
-    if (Date.now() - start > timeoutMs)
-      throw new Error("condition not met in time");
-    await new Promise((r) => setTimeout(r, 5));
-  }
-}
-
-/** A minimal fetch Response look-alike. */
-const fetchRes = (status, body) => ({
-  ok: status >= 200 && status < 300,
-  status,
-  json: async () => body,
-  text: async () => JSON.stringify(body),
-});
-
-// What a security-enabled server reports on GET /skServer/loginStatus — the
-// flow reads authenticationRequired (is a token needed at all?) and
-// allowDeviceAccessRequests (may we ask for one?).
-const LOGIN_STATUS = {
-  status: "notLoggedIn",
-  readOnlyAccess: true,
-  authenticationRequired: true,
-  allowNewUserRegistration: false,
-  allowDeviceAccessRequests: true,
-  securityWasEnabled: false,
-};
-
-test("access request flow: submits, polls, and delivers the approved token", async (t) => {
-  const calls = [];
-  let polls = 0;
-  t.mock.method(globalThis, "fetch", (url, opts) => {
-    calls.push({ url: String(url), method: opts && opts.method, body: opts && opts.body });
-    if (String(url).endsWith("/skServer/loginStatus"))
-      return Promise.resolve(fetchRes(200, LOGIN_STATUS));
-    if (String(url).endsWith("/signalk/v1/access/requests"))
-      return Promise.resolve(fetchRes(202, { state: "PENDING", href: "/signalk/v1/requests/req-1" }));
-    if (String(url).endsWith("/signalk/v1/requests/req-1")) {
-      polls += 1;
-      return Promise.resolve(
-        polls < 3
-          ? fetchRes(200, { state: "PENDING" })
-          : fetchRes(200, {
-            state: "COMPLETED",
-            statusCode: 200,
-            accessRequest: { permission: "APPROVED", token: "tok-1" },
-          }),
-      );
-    }
-    return Promise.resolve(fetchRes(404, {}));
-  });
-
-  const app = makeApp();
-  let token = null;
-  const cancel = requestDeadmanToken({ app, onToken: (tk) => { token = tk; }, pollMs: 1, retryMs: 1 });
-  await until(() => token !== null);
-  assert.equal(token, "tok-1");
-
-  // The request asked for admin permissions (what /plugins/* routes require)
-  // with a stable UUID clientId and a recognizable description.
-  const submitted = JSON.parse(calls.find((c) => c.url.endsWith("/access/requests")).body);
-  assert.match(submitted.clientId, /^[0-9a-f-]{36}$/);
-  assert.equal(submitted.permissions, "admin");
-  assert.ok(submitted.description.length > 0);
-
-  // The persisted state keeps the clientId but drops the completed request.
-  const persisted = JSON.parse(fs.readFileSync(path.join(app.dir, "deadman-access-request.json"), "utf8"));
-  assert.equal(persisted.clientId, submitted.clientId);
-  assert.equal(persisted.href, undefined);
-
-  cancel();
-  fs.rmSync(app.dir, { recursive: true, force: true });
-});
-
-test("access request flow: a denied request delivers no token and stops", async (t) => {
-  let polled = false;
-  t.mock.method(globalThis, "fetch", (url) => {
-    if (String(url).endsWith("/skServer/loginStatus"))
-      return Promise.resolve(fetchRes(200, LOGIN_STATUS));
-    if (String(url).endsWith("/signalk/v1/access/requests"))
-      return Promise.resolve(fetchRes(202, { state: "PENDING", href: "/signalk/v1/requests/req-1" }));
-    polled = true;
-    return Promise.resolve(
-      fetchRes(200, { state: "COMPLETED", statusCode: 200, accessRequest: { permission: "DENIED" } }),
-    );
-  });
-
-  const app = makeApp();
-  let token = null;
-  const cancel = requestDeadmanToken({ app, onToken: (tk) => { token = tk; }, pollMs: 1, retryMs: 1 });
-  await until(() => polled);
-  await new Promise((r) => setTimeout(r, 25)); // give a wrong onToken a chance to fire
-  assert.equal(token, null, "denied request must not deliver a token");
-
-  cancel();
-  fs.rmSync(app.dir, { recursive: true, force: true });
-});
-
-test("access request flow: a vanished pending request is re-submitted with the same clientId", async (t) => {
-  const app = makeApp();
-  // A previous run left a pending request behind, but the server has since
-  // restarted (requests are in-memory, pruned after an hour) — it's gone.
-  fs.writeFileSync(
-    path.join(app.dir, "deadman-access-request.json"),
-    JSON.stringify({ clientId: "11111111-2222-4333-8444-555555555555", href: "/signalk/v1/requests/stale" }),
-  );
-
-  const submits = [];
-  t.mock.method(globalThis, "fetch", (url, opts) => {
-    if (String(url).endsWith("/skServer/loginStatus"))
-      return Promise.resolve(fetchRes(200, LOGIN_STATUS));
-    if (String(url).endsWith("/signalk/v1/requests/stale"))
-      return Promise.resolve(fetchRes(500, {}));
-    if (String(url).endsWith("/signalk/v1/access/requests")) {
-      submits.push(JSON.parse(opts.body));
-      return Promise.resolve(fetchRes(202, { state: "PENDING", href: "/signalk/v1/requests/req-2" }));
-    }
-    return Promise.resolve(
-      fetchRes(200, { state: "COMPLETED", statusCode: 200, accessRequest: { permission: "APPROVED", token: "tok-2" } }),
-    );
-  });
-
-  let token = null;
-  const cancel = requestDeadmanToken({ app, onToken: (tk) => { token = tk; }, pollMs: 1, retryMs: 1 });
-  await until(() => token !== null);
-  assert.equal(token, "tok-2");
-  assert.equal(submits[0].clientId, "11111111-2222-4333-8444-555555555555", "identity survives the re-request");
-
-  cancel();
-  fs.rmSync(app.dir, { recursive: true, force: true });
-});
-
-test("plugin start requests a token, saves it, and arms a running watch", async (t) => {
-  const calls = [];
-  t.mock.method(globalThis, "fetch", (url, opts) => {
-    calls.push({ url: String(url), method: opts && opts.method, headers: (opts && opts.headers) || {} });
-    if (String(url).endsWith("/skServer/loginStatus"))
-      return Promise.resolve(fetchRes(200, LOGIN_STATUS));
-    if (String(url).endsWith("/signalk/v1/access/requests"))
-      return Promise.resolve(fetchRes(202, { state: "PENDING", href: "/signalk/v1/requests/req-1" }));
-    if (String(url).includes("/signalk/v1/requests/"))
-      return Promise.resolve(
-        fetchRes(200, { state: "COMPLETED", statusCode: 200, accessRequest: { permission: "APPROVED", token: "tok-3" } }),
-      );
-    return Promise.resolve(fetchRes(200, { ok: true }));
-  });
-
-  // Get a watch running first, then restart the plugin to trigger the flow.
-  const app = makeApp();
-  const plugin = createPlugin(app);
-  plugin.start(DEADMAN_OPTIONS);
-  const router = makeRouter();
-  plugin.registerWithRouter(router);
-  await router.routes["post /api/watch/start"]({ body: {} }, makeRes());
-  plugin.stop();
-
-  const saved = [];
-  app.savePluginOptions = (opts, cb) => {
-    saved.push(opts);
-    cb(null);
-  };
-  const secured = createPlugin(app);
-  secured.start(DEADMAN_OPTIONS);
-  // The first poll fires immediately after the submit, so approval lands fast.
-  await until(() => saved.length > 0);
-  assert.equal(saved[0].deadMansSwitchToken, "tok-3", "token saved into the plugin config");
-  await until(() => calls.some((c) => c.url.endsWith("/arm") && c.headers.Authorization === "Bearer tok-3"));
-
-  secured.stop();
-  fs.rmSync(app.dir, { recursive: true, force: true });
-});
-
-test("plugin start does not request a token when one is configured or security is off", async (t) => {
-  const calls = [];
-  t.mock.method(globalThis, "fetch", (url) => {
-    calls.push({ url: String(url) });
-    if (String(url).endsWith("/skServer/loginStatus"))
-      return Promise.resolve(fetchRes(200, { ...LOGIN_STATUS, authenticationRequired: false }));
-    return Promise.resolve(fetchRes(200, { ok: true }));
-  });
-
-  // The server reports authenticationRequired: false — the flow checks the
-  // login status once and stops without requesting anything.
-  const open = makeApp();
-  const openPlugin = createPlugin(open);
-  openPlugin.start(DEADMAN_OPTIONS);
-  await until(() => calls.some((c) => c.url.endsWith("/skServer/loginStatus")));
-  await new Promise((r) => setTimeout(r, 25));
-  assert.ok(!calls.some((c) => c.url.includes("/access/requests")), "no request on an open server");
-  openPlugin.stop();
-  fs.rmSync(open.dir, { recursive: true, force: true });
-
-  // A token already configured: the flow isn't even started.
-  const before = calls.length;
-  const secured = makeApp();
-  const securedPlugin = createPlugin(secured);
-  securedPlugin.start({ ...DEADMAN_OPTIONS, deadMansSwitchToken: "already-set" });
-  await new Promise((r) => setTimeout(r, 25));
-  assert.equal(calls.length, before, "no requests at all when a token exists");
-  securedPlugin.stop();
-  fs.rmSync(secured.dir, { recursive: true, force: true });
-});
-
-test("access request flow: waits when device access requests are disallowed", async (t) => {
-  const calls = [];
-  t.mock.method(globalThis, "fetch", (url) => {
-    calls.push({ url: String(url) });
-    if (String(url).endsWith("/skServer/loginStatus"))
-      return Promise.resolve(fetchRes(200, { ...LOGIN_STATUS, allowDeviceAccessRequests: false }));
-    return Promise.resolve(fetchRes(404, {}));
-  });
-
-  const app = makeApp();
-  let token = null;
-  const cancel = requestDeadmanToken({ app, onToken: (tk) => { token = tk; }, pollMs: 1, retryMs: 1 });
-  // It keeps re-checking the login status (the admin may flip the setting)…
-  await until(() => calls.filter((c) => c.url.endsWith("/skServer/loginStatus")).length >= 3);
-  // …but never submits an access request it knows will be rejected.
-  assert.ok(!calls.some((c) => c.url.includes("/access/requests")));
-  assert.equal(token, null);
-
-  cancel();
   fs.rmSync(app.dir, { recursive: true, force: true });
 });
 

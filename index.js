@@ -13,7 +13,7 @@ import { buildWatchData, publish, publishMeta } from "./src/server/publisher.js"
 import { registerRoutes } from "./src/server/api.js";
 import { startAutoWatch } from "./src/server/auto-watch.js";
 import { reconcileWatch } from "./src/server/watch-control.js";
-import { requestDeadmanToken, syncDeadmansSwitch } from "./src/server/deadman.js";
+import { connectDeadmansSwitch } from "./src/server/deadman.js";
 
 const PUBLISH_INTERVAL_MS = 30_000;
 
@@ -78,8 +78,16 @@ export default function (app) {
   // Unsubscribe handle for the navigation.state listener (auto-watch). This tears
   // down the subscription only — the watch itself is persisted and survives stop.
   let unsubscribeAutoWatch = null;
-  // Cancel handle for the dead man's switch access-request flow.
-  let cancelTokenRequest = null;
+  // Connection to the dead man's switch plugin's in-process API; null while the
+  // integration is disabled or the plugin is stopped.
+  let deadman = null;
+
+  // Arm/disarm the dead man's switch to match the watch state — a no-op unless
+  // the integration is enabled and started. Shared with the routes and auto-watch.
+  const syncDeadman = (onWatch) => {
+    if (deadman)
+      deadman.sync(onWatch);
+  };
 
   // Reflect the effective crew size in the plugin status. Only team counts some
   // system covers (2–5 for the built-ins, plus whatever custom systems add) can
@@ -197,15 +205,8 @@ export default function (app) {
         type: "boolean",
         title: "Enable signalk-dead-mans-switch integration",
         description:
-          "Automatically arm signalk-dead-mans-switch when a watch starts, disarm it when the watch stops, and enable the arm/disarm controls in the watch schedule UI. Requires the signalk-dead-mans-switch plugin to be installed and enabled.",
+          "Automatically arm signalk-dead-mans-switch when a watch starts, disarm it when the watch stops, and enable the arm/disarm controls in the watch schedule UI. Requires signalk-dead-mans-switch v0.6.0 or newer to be installed and enabled.",
         default: false,
-      },
-      deadMansSwitchToken: {
-        type: "string",
-        title: "Dead man's switch access token",
-        description:
-          "Only used when server security is enabled: a SignalK access token sent with the arm/disarm requests. Normally filled in automatically — when the integration is enabled and this is empty, the plugin submits an access request on startup; approve it under Security → Access Requests and the granted token is saved here.",
-        default: "",
       },
     },
   });
@@ -225,11 +226,15 @@ export default function (app) {
     // config (e.g. the team count changed while we were stopped). Stop such a
     // stale watch on start so the UI and /start agree on the available systems.
     const reconciled = reconcileWatch(store, options, app);
+    // Connect to the switch plugin's in-process API after reconciling, so its
+    // arm-a-running-watch-on-announcement logic sees the settled watch state.
+    if (options.enableDeadMansSwitch)
+      deadman = connectDeadmansSwitch({ app, getStore: () => store });
     if (reconciled.stopped) {
       if (typeof app.debug === "function")
         app.debug(`stopped stale watch on start — ${reconciled.reason}`);
       // The switch may still be armed from the watch we just stopped.
-      syncDeadmansSwitch(app, options, false);
+      syncDeadman(false);
     }
     publishMeta(app, plugin.id);
     publishNow();
@@ -240,29 +245,7 @@ export default function (app) {
     if (typeof timer.unref === "function")
       timer.unref();
     if (options.enableAutoWatchStart || options.enableAutoWatchStop)
-      unsubscribeAutoWatch = startAutoWatch({ app, getOptions: () => options, getStore: () => store, publishNow });
-    // Integration enabled but no token yet: ask for one via the SignalK access
-    // request flow (a no-op on servers without security). Once the admin
-    // approves, save the token into the config and — since any arm attempted
-    // before approval got a 401 — bring the switch in line with the watch.
-    if (options.enableDeadMansSwitch && !String(options.deadMansSwitchToken || "").trim()) {
-      cancelTokenRequest = requestDeadmanToken({
-        app,
-        onToken: (token) => {
-          // Don't mutate the object the server handed to start() — replace our
-          // own reference (getOptions() closures see the new one).
-          options = { ...options, deadMansSwitchToken: token };
-          if (typeof app.savePluginOptions === "function") {
-            app.savePluginOptions(options, (err) => {
-              if (err)
-                app.error(`watch-schedule: failed to save the dead man's switch token: ${err.message ?? err}`);
-            });
-          }
-          if (store && store.get().onWatch)
-            syncDeadmansSwitch(app, options, true);
-        },
-      });
-    }
+      unsubscribeAutoWatch = startAutoWatch({ app, getOptions: () => options, getStore: () => store, publishNow, syncDeadman });
   };
 
   plugin.stop = () => {
@@ -272,9 +255,9 @@ export default function (app) {
     if (unsubscribeAutoWatch)
       unsubscribeAutoWatch();
     unsubscribeAutoWatch = null;
-    if (cancelTokenRequest)
-      cancelTokenRequest();
-    cancelTokenRequest = null;
+    if (deadman)
+      deadman.close();
+    deadman = null;
     store = null;
   };
 
@@ -287,6 +270,7 @@ export default function (app) {
       getOptions: () => options,
       getStore: () => store,
       publishNow,
+      syncDeadman,
     });
   };
 

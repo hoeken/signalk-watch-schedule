@@ -14,7 +14,6 @@
  */
 
 import { startWatch, stopWatch } from "./watch-control.js";
-import { syncDeadmansSwitch } from "./deadman.js";
 
 /** navigation.state value → the group we track, or null when we don't care. */
 const GROUP = {
@@ -35,11 +34,11 @@ function groupOf(state) {
  * Subscribe to navigation.state and auto start/stop the watch on
  * rest↔under-way transitions.
  *
- * @param {{ app: object, getOptions: () => object, getStore: () => object|null, publishNow: () => void }} ctx
+ * @param {{ app: object, getOptions: () => object, getStore: () => object|null, publishNow: () => void, syncDeadman: (onWatch: boolean) => void }} ctx
  * @returns {() => void} an unsubscribe function (always safe to call)
  */
 export function startAutoWatch(ctx) {
-  const { app, getOptions, getStore, publishNow } = ctx;
+  const { app, getOptions, getStore, publishNow, syncDeadman } = ctx;
 
   if (!app.streambundle || typeof app.streambundle.getSelfStream !== "function") {
     if (typeof app.error === "function")
@@ -82,7 +81,7 @@ export function startAutoWatch(ctx) {
       if (typeof app.debug === "function")
         app.debug(`auto-started watch (navigation.state → ${value})`);
       publishNow();
-      syncDeadmansSwitch(app, options, true);
+      syncDeadman(true);
     } else {
       // group === "rest"
       if (!options.enableAutoWatchStop)
@@ -93,7 +92,7 @@ export function startAutoWatch(ctx) {
       if (typeof app.debug === "function")
         app.debug(`auto-stopped watch (navigation.state → ${value})`);
       publishNow();
-      syncDeadmansSwitch(app, options, false);
+      syncDeadman(false);
     }
   };
 

@@ -20,7 +20,6 @@ import { allSystems } from "./custom-systems.js";
 import { buildWatchData } from "./publisher.js";
 import { startWatch, stopWatch } from "./watch-control.js";
 import { resolveTeams } from "./teams.js";
-import { syncDeadmansSwitch } from "./deadman.js";
 
 /**
  * Is SignalK security turned on for this server? The server installs either a
@@ -51,10 +50,10 @@ function canWrite(app, req) {
 
 /**
  * @param {object} router express router supplied by SignalK
- * @param {{ app: object, getOptions: () => object, getStore: () => object|null, publishNow: () => void }} ctx
+ * @param {{ app: object, getOptions: () => object, getStore: () => object|null, publishNow: () => void, syncDeadman: (onWatch: boolean) => void }} ctx
  */
 export function registerRoutes(router, ctx) {
-  const { app, getOptions, getStore, publishNow } = ctx;
+  const { app, getOptions, getStore, publishNow, syncDeadman } = ctx;
 
   const notReady = (res) => res.status(503).json({ error: "plugin not started" });
 
@@ -108,7 +107,7 @@ export function registerRoutes(router, ctx) {
       return res.status(400).json({ error: result.error });
     }
     publishNow();
-    syncDeadmansSwitch(app, options, true);
+    syncDeadman(true);
     res.json(buildWatchData(result.state, options, Date.now(), app));
   });
 
@@ -121,7 +120,7 @@ export function registerRoutes(router, ctx) {
 
     const newState = stopWatch(store);
     publishNow();
-    syncDeadmansSwitch(app, getOptions(), false);
+    syncDeadman(false);
     res.json(buildWatchData(newState, getOptions(), Date.now(), app));
   });
 }

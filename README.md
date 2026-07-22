@@ -63,7 +63,6 @@ Then enable the plugin in **Server → Plugin Config** and open it from **Webapp
 | **Automatically start a watch under way** | Start a watch (defaults apply) when `navigation.state` becomes sailing/motoring. |
 | **Automatically stop the watch at rest** | Stop the watch when `navigation.state` becomes moored/anchored. |
 | **Arm the dead man's switch on watch** | Arm `signalk-dead-mans-switch` when a watch starts and disarm it when the watch stops. Off by default; see below. |
-| **Dead man's switch access token** | Only used when server security is enabled: the SignalK access token sent with the arm/disarm requests. Filled in automatically via an access request — see below. |
 
 These teams are only the *defaults*: the web UI can add, remove, rename, and reorder teams
 before starting a watch. Those per-watch edits are kept in the browser (so they come back
@@ -151,25 +150,17 @@ installed and **Arm the dead man's switch on watch** enabled, the two plugins wo
   the schedule. The `mode=day|night` query param (passed by B&G displays for
   theming) is forwarded to the embedded panel so both apps match.
 
-The arm/disarm calls are plain `POST`s to the switch plugin's API on the local
-server (`/plugins/signalk-dead-mans-switch/arm` and `/disarm`), fire-and-forget:
-if the switch plugin is missing or unreachable the watch still starts and stops
-normally, and the failure is only logged.
+The arm/disarm calls use the switch plugin's in-process API, announced via
+SignalK's PropertyValues mechanism — everything stays inside the server
+process, so there is no HTTP and no authentication involved, and it works
+identically whether or not server security is enabled. This requires
+**signalk-dead-mans-switch v0.6.0 or newer**.
 
-When server security is enabled, SignalK requires an authenticated admin
-principal for all `/plugins/*` requests, so the arm/disarm calls need a token.
-The plugin obtains one by itself using SignalK's
-[access request](https://signalk.org/specification/1.8.2/doc/access_requests.html)
-flow: on startup, with the integration enabled and no token configured, it
-submits a device access request — approve it in the admin UI under
-**Security → Access Requests** (it appears as *"Watch Schedule — dead man's
-switch integration"*) and the granted token is saved into the plugin config
-automatically. If the request is denied, the plugin asks again on its next
-start. You can also paste a token in manually (e.g. one from
-`signalk-generate-token`) to skip the approval step.
-
-Note that the server must have **Allow Device Access Requests** enabled
-(Security settings) for the automatic flow to work.
+The calls are fire-and-forget: if the switch plugin is missing or disabled,
+the watch still starts and stops normally and the problem is only logged.
+Plugin start order doesn't matter either — an arm/disarm requested before the
+switch plugin has announced its API is delivered as soon as it appears, and a
+running watch re-arms the switch if the switch plugin restarts mid-watch.
 
 ## SignalK paths
 
