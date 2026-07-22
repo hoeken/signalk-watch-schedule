@@ -8,8 +8,7 @@ const DEADMAN_APP_URL = "/signalk-dead-mans-switch/";
  * theming) is forwarded so both apps agree on the theme.
  */
 export default function DeadmanPanel() {
-  const mode = new URLSearchParams(window.location.search).get("mode");
-  const src = `${DEADMAN_APP_URL}?embedded=true${mode !== null ? `&mode=${encodeURIComponent(mode)}` : ""}`;
+  const src = `${DEADMAN_APP_URL}?embedded=true${mode !== null ? `&mode=day` : ""}`;
   return (
     <section className="panel deadman-panel">
       <h2>Dead Man&apos;s Switch</h2>
