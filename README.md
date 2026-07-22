@@ -63,6 +63,7 @@ Then enable the plugin in **Server → Plugin Config** and open it from **Webapp
 | **Automatically start a watch under way** | Start a watch (defaults apply) when `navigation.state` becomes sailing/motoring. |
 | **Automatically stop the watch at rest** | Stop the watch when `navigation.state` becomes moored/anchored. |
 | **Arm the dead man's switch on watch** | Arm `signalk-dead-mans-switch` when a watch starts and disarm it when the watch stops. Off by default; see below. |
+| **Disable the dead man's switch during the day** | While `environment.mode` is `day`, keep the switch disarmed even during a watch — check-ins run only at night. On by default; see below. |
 
 These teams are only the *defaults*: the web UI can add, remove, rename, and reorder teams
 before starting a watch. Those per-watch edits are kept in the browser (so they come back
@@ -145,6 +146,13 @@ installed and **Arm the dead man's switch on watch** enabled, the two plugins wo
   `navigation.state` triggers) **arms** the switch, so periodic "you still there?"
   check-ins run while someone is supposed to be on watch.
 - Stopping the watch **disarms** it — no more check-ins at anchor.
+- With **Disable the dead man's switch during the day** on (the default), the
+  switch stays disarmed while `environment.mode` is `day` — a watch started in
+  daylight arms itself at nightfall, and daybreak disarms it until the next
+  night. Requires `environment.mode` (published e.g. by
+  [signalk-derived-data](https://www.npmjs.com/package/@signalk/signalk-derived-data)'s
+  *Sets environment.mode* calculation); when it isn't published, the switch
+  simply stays armed for the whole watch.
 - While a watch is running, the switch's check-in panel is embedded below the
   controls in the web UI, so the on-watch crew can acknowledge without leaving
   the schedule. The `mode=day|night` query param (passed by B&G displays for

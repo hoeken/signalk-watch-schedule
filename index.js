@@ -31,6 +31,11 @@ const PATH_CHECKS = [
     description:
       "Optional - required for Automatic watch start/stop. Detects when the boat is under way (sailing/motoring) or at rest (moored/anchored).",
   },
+  {
+    path: "environment.mode",
+    description:
+      "Optional - required to disable the dead man's switch during the day. Day/night indicator, published by derived-data plugin.",
+  },
 ];
 
 // Build the read-only pathChecks schema properties, one per PATH_CHECKS entry,
@@ -208,6 +213,13 @@ export default function (app) {
           "Automatically arm signalk-dead-mans-switch when a watch starts, disarm it when the watch stops, and enable the arm/disarm controls in the watch schedule UI. Requires signalk-dead-mans-switch v0.6.0 or newer to be installed and enabled.",
         default: false,
       },
+      disableDeadMansSwitchDuringDay: {
+        type: "boolean",
+        title: "Disable the dead man's switch during the day",
+        description:
+          "Keep the switch disarmed while environment.mode is day, even with a watch running — check-ins happen only at night. When environment.mode is not published the switch stays armed for the whole watch. Only applies when the integration above is enabled.",
+        default: true,
+      },
     },
   });
 
@@ -229,7 +241,11 @@ export default function (app) {
     // Connect to the switch plugin's in-process API after reconciling, so its
     // arm-a-running-watch-on-announcement logic sees the settled watch state.
     if (options.enableDeadMansSwitch)
-      deadman = connectDeadmansSwitch({ app, getStore: () => store });
+      deadman = connectDeadmansSwitch({
+        app,
+        getStore: () => store,
+        disableDuringDay: options.disableDeadMansSwitchDuringDay !== false,
+      });
     if (reconciled.stopped) {
       if (typeof app.debug === "function")
         app.debug(`stopped stale watch on start — ${reconciled.reason}`);

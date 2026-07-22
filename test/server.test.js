@@ -94,11 +94,16 @@ test("resolveTeams falls back to generic teams when no config and no crew", () =
 
 // --- helpers to exercise the plugin + routes with a mock SignalK app ---
 
-function makeApp(crewNames) {
+function makeApp(crewNames, selfPaths = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ws-test-"));
   const deltas = [];
-  // Minimal Bacon-like stream: tests push navigation.state values via navState.
-  let stateCb = null;
+  // Minimal Bacon-like streams, keyed by path: tests push navigation.state
+  // values via navState and environment.mode values via envMode.
+  const streamSubs = new Map();
+  const pushPath = (p) => (v) => {
+    for (const cb of streamSubs.get(p) ?? [])
+      cb(v);
+  };
   // PropertyValues mock with the real server's semantics: subscribers get the
   // full emission history — entries wrapped { timestamp, setter, name, value },
   // seeded with undefined — synchronously on subscribe and on every emission.
@@ -111,8 +116,9 @@ function makeApp(crewNames) {
   const app = {
     dir,
     deltas,
-    navState: (v) => stateCb && stateCb(v),
-    getSelfPath: (p) => (p === "communication.crewNames" ? crewNames : undefined),
+    navState: pushPath("navigation.state"),
+    envMode: pushPath("environment.mode"),
+    getSelfPath: (p) => (p === "communication.crewNames" ? crewNames : selfPaths[p]),
     getDataDirPath: () => dir,
     handleMessage: (_id, delta) => deltas.push(delta),
     // Record the latest status/error so tests can assert the crew-size feedback.
@@ -123,10 +129,12 @@ function makeApp(crewNames) {
     error: () => {},
     debug: () => {},
     streambundle: {
-      getSelfStream: () => ({
+      getSelfStream: (p) => ({
         onValue: (cb) => {
-          stateCb = cb;
-          return () => { stateCb = null; };
+          if (!streamSubs.has(p))
+            streamSubs.set(p, new Set());
+          streamSubs.get(p).add(cb);
+          return () => streamSubs.get(p).delete(cb);
         },
       }),
     },
@@ -937,6 +945,120 @@ test("reconciling away a stale watch on start disarms the dead man's switch", as
   reloaded.start(DEADMAN_OPTIONS);
   assert.equal(calls.length, 2);
   assert.equal(calls[1].action, "disarm");
+
+  reloaded.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("day gating keeps the switch disarmed by day and arms it at nightfall", async () => {
+  const app = makeApp();
+  const calls = mockDeadmanApi(app);
+  const plugin = createPlugin(app);
+  plugin.start(DEADMAN_OPTIONS); // disableDeadMansSwitchDuringDay defaults to true
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  // The path the gate needs is surfaced in the settings' path checks.
+  assert.ok("environment.mode" in plugin.schema().properties.pathChecks.properties);
+
+  app.envMode("day");
+  await router.routes["post /api/watch/start"]({ body: {} }, makeRes());
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].action, "disarm", "a watch started by day leaves the switch off");
+  assert.match(calls[0].reason, /disabled during the day/);
+
+  app.envMode("day"); // environment.mode is republished continuously — no spam
+  assert.equal(calls.length, 1, "a repeated mode value causes no call");
+
+  app.envMode("night"); // nightfall mid-watch → arm
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].action, "arm");
+
+  app.envMode("dusk"); // not day/night → ignored
+  assert.equal(calls.length, 2);
+
+  app.envMode("day"); // daybreak mid-watch → disarm
+  assert.equal(calls.length, 3);
+  assert.equal(calls[2].action, "disarm");
+
+  await router.routes["post /api/watch/stop"]({ body: {} }, makeRes());
+  assert.equal(calls[3].action, "disarm", "stopping by day still disarms");
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("day/night changes with no watch running leave the switch alone", () => {
+  const app = makeApp();
+  const calls = mockDeadmanApi(app);
+  const plugin = createPlugin(app);
+  plugin.start(DEADMAN_OPTIONS); // idle — no watch
+
+  app.envMode("day");
+  app.envMode("night");
+  app.envMode("day");
+  assert.equal(calls.length, 0, "a hand-armed switch is never touched off watch");
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("day gating can be turned off: the switch arms for the whole watch", async () => {
+  const app = makeApp();
+  const calls = mockDeadmanApi(app);
+  const plugin = createPlugin(app);
+  plugin.start({ ...DEADMAN_OPTIONS, disableDeadMansSwitchDuringDay: false });
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+
+  app.envMode("day");
+  await router.routes["post /api/watch/start"]({ body: {} }, makeRes());
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].action, "arm", "day mode is ignored when the option is off");
+
+  app.envMode("night");
+  app.envMode("day");
+  assert.equal(calls.length, 1, "mode changes are not even subscribed to");
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("the initial environment.mode is read at startup and gates a deferred arm", async () => {
+  // environment.mode already reads "day" (as a { value } node, the getSelfPath
+  // form) when the plugin starts; the switch plugin announces late — the
+  // remembered arm must be delivered as a disarm.
+  const app = makeApp(undefined, { "environment.mode": { value: "day" } });
+  const plugin = createPlugin(app);
+  plugin.start(DEADMAN_OPTIONS);
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+  await router.routes["post /api/watch/start"]({ body: {} }, makeRes());
+
+  const calls = mockDeadmanApi(app); // the switch plugin starts late
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].action, "disarm", "the deferred arm is gated by the current mode");
+
+  plugin.stop();
+  fs.rmSync(app.dir, { recursive: true, force: true });
+});
+
+test("a persisted watch does not re-arm on announcement during the day", async () => {
+  // Server restart in daylight with a watch persisted: the announce-time
+  // re-arm syncs to disarmed instead (bare-value getSelfPath form).
+  const app = makeApp(undefined, { "environment.mode": "day" });
+  const plugin = createPlugin(app);
+  plugin.start(DEADMAN_OPTIONS);
+  const router = makeRouter();
+  plugin.registerWithRouter(router);
+  await router.routes["post /api/watch/start"]({ body: {} }, makeRes());
+  plugin.stop();
+
+  const reloaded = createPlugin(app);
+  reloaded.start(DEADMAN_OPTIONS);
+  const calls = mockDeadmanApi(app);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].action, "disarm", "no re-arm while it's day");
 
   reloaded.stop();
   fs.rmSync(app.dir, { recursive: true, force: true });

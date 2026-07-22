@@ -17,12 +17,49 @@
  * plugin start order is not guaranteed, so an arm/disarm requested before the
  * switch has announced its API is remembered and delivered when the
  * announcement arrives instead of being dropped.
+ *
+ * Day gating (options.disableDeadMansSwitchDuringDay, on by default): during
+ * daylight the crew is up and about, so check-ins are just noise. While
+ * environment.mode is "day" every arm request is executed as a disarm instead
+ * — the watch runs, the switch stays off — and a mode change mid-watch
+ * re-syncs the switch (disarm at daybreak, arm at nightfall). The gate is
+ * fail-safe: when environment.mode is unknown (not published, or streambundle
+ * unavailable) the switch is armed for the whole watch as before.
  */
 
 export const DEADMAN_PLUGIN_ID = "signalk-dead-mans-switch";
 
 /** PropertyValues name the switch plugin announces its in-process API under. */
 export const DEADMAN_API_PROPERTY = `${DEADMAN_PLUGIN_ID}-api`;
+
+/** SignalK path carrying the day/night indicator the day gate tracks. */
+export const MODE_PATH = "environment.mode";
+
+/**
+ * Normalize an environment.mode reading to "day" | "night", or null for
+ * anything else. getSelfPath may hand back the stored data node
+ * ({ value, timestamp, … }) or the bare value — accept either.
+ * @param {unknown} raw
+ * @returns {"day"|"night"|null}
+ */
+function normalizeMode(raw) {
+  const value = raw && typeof raw === "object" ? raw.value : raw;
+  if (typeof value !== "string")
+    return null;
+  const mode = value.trim().toLowerCase();
+  return mode === "day" || mode === "night" ? mode : null;
+}
+
+/** Current environment.mode from the full model — the day gate's initial state. */
+function readMode(app) {
+  if (!app || typeof app.getSelfPath !== "function")
+    return null;
+  try {
+    return normalizeMode(app.getSelfPath(MODE_PATH));
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Subscribe to the switch plugin's API announcement and expose sync/close.
@@ -36,12 +73,14 @@ export const DEADMAN_API_PROPERTY = `${DEADMAN_PLUGIN_ID}-api`;
  *     a server restart with a persisted watch, comes back armed. Arm-only on
  *     purpose: with no watch running we never disarm on announcement, so a
  *     switch somebody armed by hand stays armed.
+ * Both are subject to the day gate — with a watch running in daylight the
+ * announcement syncs the switch to disarmed instead.
  *
- * @param {{ app: object, getStore: () => object|null }} ctx
+ * @param {{ app: object, getStore: () => object|null, disableDuringDay?: boolean }} ctx
  * @returns {{ sync: (onWatch: boolean) => void, close: () => void }}
  */
 export function connectDeadmansSwitch(ctx) {
-  const { app, getStore } = ctx;
+  const { app, getStore, disableDuringDay = false } = ctx;
   const debug = typeof app?.debug === "function" ? app.debug : () => {};
   const error = typeof app?.error === "function" ? app.error : () => {};
 
@@ -50,9 +89,20 @@ export function connectDeadmansSwitch(ctx) {
   let api = null;
   let pending = null;
   let unsubscribe = () => {};
+  let unsubscribeMode = () => {};
+
+  // Last known environment.mode ("day" | "night"), null while unknown. Only
+  // tracked when day gating is on; unknown fails safe to armed.
+  let mode = disableDuringDay ? readMode(app) : null;
 
   const call = (onWatch, why) => {
-    const action = onWatch ? "arm" : "disarm";
+    // Day gating: while it's day, an arm request is executed as a disarm — the
+    // watch keeps the switch matching the schedule, and the schedule says no
+    // check-ins in daylight. Disarm requests always pass through.
+    const arm = onWatch && !(disableDuringDay && mode === "day");
+    if (arm !== onWatch)
+      why = `${why} — switch disabled during the day`;
+    const action = arm ? "arm" : "disarm";
     if (typeof api[action] !== "function") {
       error(`watch-schedule: dead man's switch ${action} failed: the announced API has no ${action}() — update ${DEADMAN_PLUGIN_ID}`);
       return;
@@ -65,6 +115,32 @@ export function connectDeadmansSwitch(ctx) {
       error(`watch-schedule: dead man's switch ${action} failed: ${e.message}`);
     }
   };
+
+  if (disableDuringDay) {
+    if (app?.streambundle && typeof app.streambundle.getSelfStream === "function") {
+      const onMode = (value) => {
+        const next = normalizeMode(value);
+        // Ignore anything but a day/night *change* — the path is typically
+        // republished continuously (e.g. by signalk-derived-data).
+        if (next === null || next === mode)
+          return;
+        mode = next;
+        debug(`${MODE_PATH} → ${next}`);
+        // Only a running watch is managed: re-sync it to the new mode (disarm
+        // at daybreak, arm at nightfall). With no watch we never touch the
+        // switch, and before the API has announced the announcement handler
+        // applies the then-current mode anyway.
+        const store = typeof getStore === "function" ? getStore() : null;
+        if (api && store && store.get().onWatch)
+          call(true, `${MODE_PATH} → ${next}`);
+      };
+      const unsub = app.streambundle.getSelfStream(MODE_PATH).onValue(onMode);
+      if (typeof unsub === "function")
+        unsubscribeMode = unsub;
+    } else {
+      error(`watch-schedule: streambundle unavailable — cannot track ${MODE_PATH}, so the dead man's switch stays armed for the whole watch`);
+    }
+  }
 
   if (typeof app?.onPropertyValues === "function") {
     const unsub = app.onPropertyValues(DEADMAN_API_PROPERTY, (history) => {
@@ -106,6 +182,7 @@ export function connectDeadmansSwitch(ctx) {
     },
     close() {
       unsubscribe();
+      unsubscribeMode();
       api = null;
       pending = null;
     },
